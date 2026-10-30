@@ -762,7 +762,16 @@ const YF=[ // [項目, 表示名, 見出しの判定]
  ['memo','摘要（伝票）',/^(摘要|伝票摘要)$/],
  ['note','備考（明細）',/^(備考|明細備考)/],
  ['dest','納入先',/^納入先(名)?$/],
+ ['custOrderNo','客先注文番号',/^(客先注文番号|注文番号|先方注文番号|得意先注文番号)/],
+ ['size','寸法（ライニング加工／鉄芯）',/寸法/],
+ ['lining','使用ライニング',/(使用ライニング|ライニング)/],
+ ['remain','受注残数（0なら完了）',/^(受注残数|受注残|残数)$/],
 ];
+// 弥生販売の「受注明細」書き出し（見出しなし）の列の並び
+const YPRESETS=[{name:'弥生販売 受注明細',
+ test:rows=>{const r=rows.filter(x=>x.length>=40);return r.length>=Math.max(1,rows.length*.8)&&r.every(x=>/^\d{8}$/.test(x[3]||'')&&/^\d{6,}$/.test(x[4]||'')&&(!x[31]||/^\d{8}$/.test(x[31])))},
+ map:{orderDate:3,orderNo:4,custCode:10,itemCode:15,itemName:17,qty:23,custOrderNo:30,dueDate:31,remain:32,size:35,lining:36,custName:38}}];
+const FEE_RE=/(対応費|送料|運賃|値引|手数料|諸経費|梱包費|出張費|配送料)/;
 const YREQ=['itemName'];
 const nk=v=>String(v??'').normalize('NFKC').replace(/\s/g,'');
 async function readTextAuto(file){const buf=await file.arrayBuffer();try{return{text:new TextDecoder('utf-8',{fatal:true}).decode(buf).replace(/^﻿/,''),enc:'UTF-8'}}catch(e){return{text:new TextDecoder('shift_jis').decode(buf),enc:'Shift-JIS'}}}
@@ -794,7 +803,7 @@ function guessMap(rows,hasHeader){
  for(let j=0;j<n;j++){const vs=sample.map(r=>(r[j]||'').trim().normalize('NFKC')).filter(Boolean),c=vs.length||1;
   st.push({j,fill:vs.length/sample.length,date:vs.filter(v=>parseDateAny(v)).length/c,int:vs.filter(v=>/^\d+(\.0+)?$/.test(numClean(v))).length/c,
    zero:vs.filter(v=>/^0\d+$/.test(v)).length/c,model:vs.filter(v=>new RegExp('^'+MODEL_TOKEN.source+'$').test(v)).length/c,comp:vs.filter(v=>COMP.test(v)).length/c,
-   jp:vs.filter(v=>new RegExp(JCH).test(v)).length/c,item:vs.filter(v=>new RegExp(JCH).test(v)&&ANYP.test(v)).length/c,big:vs.filter(v=>+numClean(v)>=1000).length/c,max:Math.max(0,...vs.map(v=>+numClean(v)||0))})}
+   jp:vs.filter(v=>new RegExp(JCH).test(v)).length/c,uniq:(new Set(vs).size-1)/Math.max(1,vs.length-1),item:vs.filter(v=>new RegExp(JCH).test(v)&&ANYP.test(v)).length/c,big:vs.filter(v=>+numClean(v)>=1000).length/c,max:Math.max(0,...vs.map(v=>+numClean(v)||0))})}
  const used=new Set(),take=(k,f,sort)=>{let c=st.filter(x=>!used.has(x.j)&&x.fill>0&&f(x));if(sort)c=c.sort(sort);if(c.length){map[k]=c[0].j;used.add(c[0].j)}};
  const dates=st.filter(x=>x.date>.8);
  if(dates[0]){map.orderDate=dates[0].j;used.add(dates[0].j)}
@@ -803,43 +812,55 @@ function guessMap(rows,hasHeader){
  take('custCode',x=>x.zero>.8);
  take('custName',x=>x.comp>.5);
  take('itemName',x=>x.jp>.6&&x.comp<.5,(a,b)=>b.item-a.item);
- const models=st.filter(x=>!used.has(x.j)&&x.model>.6);
+ const models=st.filter(x=>!used.has(x.j)&&x.model>.6&&x.uniq>.3);
  if(models.length>=2){map.itemCode=models[0].j;map.spec=models[models.length-1].j;used.add(models[0].j);used.add(models[models.length-1].j)}
  else if(models.length===1){map.spec=models[0].j;used.add(models[0].j)}
  // 数量：商品名より右にある、小さめの整数の列（行番号のように 1,2,1,2… と繰り返す列は除く）
  const after=map.itemName>=0?map.itemName:0;
  const lineLike=x=>{const vs=sample.map(r=>+numClean(r[x.j]||''));return vs.length>2&&vs.every(v=>v>=1&&v<=30)&&vs.filter(v=>v===1).length>=vs.length/3};
  take('lineNo',x=>x.int>.9&&x.j<after&&lineLike(x));
- take('qty',x=>x.int>.9&&x.big<.5&&x.zero<.5&&x.j>after,(a,b)=>a.j-b.j);
+ take('qty',x=>x.int>.9&&x.big<.5&&x.zero<.5&&x.j>after&&x.uniq>.1,(a,b)=>a.j-b.j);
  return map;
 }
+function pickModel(name,code,spec){
+ const isTok=t=>t.length>=4&&/^[A-Za-z0-9][A-Za-z0-9\-_.]*$/.test(t)&&/[A-Za-z]/.test(t)&&/\d/.test(t)&&!/^\d+(\.\d+)?[A-Za-z]{1,3}$/.test(t);
+ const sp=String(spec||'').normalize('NFKC').trim();if(sp&&isTok(sp))return sp;
+ const toks=String(name||'').normalize('NFKC').split(new RegExp(`[\\s()（）［］\\[\\]、,，/*×φΦ]+|${JCH}+`)).map(t=>t.replace(/^[.\-_]+|[.\-_]+$/g,'')).filter(isTok);
+ const cn=String(code||'').normalize('NFKC'),cs=norm(cn.replace(/^[A-Za-z]-/,''));
+ if(cs.length>=4){const hit=toks.find(t=>{const n=norm(t);return n.length>=4&&(n===cs||(cs.includes(n)&&n.length>=cs.length*.6)||(n.includes(cs)&&cs.length>=n.length*.6))});if(hit)return hit}
+ const hy=toks.filter(t=>t.includes('-')&&t.length>=8).sort((a,b)=>b.length-a.length);if(hy.length)return hy[0];
+ if(toks.length)return [...toks].sort((a,b)=>b.length-a.length)[0];
+ return cn;
+}
+const jn=v=>String(v??'').normalize('NFKC').replace(/\s+/g,' ').trim();
 function buildFromCSV(rows,map,hasHeader){
  const data=hasHeader?rows.slice(1):rows,get=(r,k)=>map[k]>=0?String(r[map[k]]??'').trim():'',out=[],lineCount={};
  for(const r of data){
-  const no=get(r,'orderNo'),name=get(r,'itemName'),code=get(r,'itemCode'),spec=get(r,'spec'),qty=numClean(get(r,'qty'));
+  const no=get(r,'orderNo'),name=jn(get(r,'itemName')),code=jn(get(r,'itemCode')),spec=jn(get(r,'spec')),qty=numClean(get(r,'qty'));
   if(!name&&!code&&!spec)continue;
   // 商品コードも型番も数量もない行は「摘要行」→ 同じ伝票の直前の明細の備考へ
   const last=out[out.length-1];
   if(!code&&!spec&&!qty&&last&&last.no===no){last.extra.push(name);continue}
   lineCount[no]=(lineCount[no]||0)+1;
-  const ln=get(r,'lineNo')||String(lineCount[no]);
-  const nn=name.normalize('NFKC'),ns=spec.normalize('NFKC');
-  let model='';if(ns&&/\d/.test(ns))model=ns;
-  if(!model){const m=nn.match(MODEL_TOKEN);if(m)model=m[0]}
-  if(!model)model=code.normalize('NFKC');
-  const process=PROCESSES.filter(k=>PROC_RE[k].test(nn+' '+ns));
-  let pname=nn;if(model)pname=pname.split(model).join(' ');PROCESSES.forEach(k=>{pname=pname.replace(PROC_RE[k],' ')});pname=pname.replace(/\s+/g,' ').replace(/^[\s・,、\/()（）]+|[\s・,、\/()（）]+$/g,'').trim();
-  const memo=get(r,'memo'),note=get(r,'note'),dest=get(r,'dest');
-  out.push({no,ln,key:no?`${no}-${ln}`:'',customer:get(r,'custName')||get(r,'custCode'),model,pname,process,qty,
-   orderDate:parseDateAny(get(r,'orderDate')),dueDate:parseDateAny(get(r,'dueDate')),itemName:name,
-   extra:[memo,note,dest?'納入先 '+dest:''].filter(Boolean),urgent:/(大至急|至急|特急|急ぎ|緊急)/.test([memo,note,name].join(' '))});
+  const ln=get(r,'lineNo')||code||String(lineCount[no]);
+  const model=pickModel(name,code,spec);
+  const process=PROCESSES.filter(k=>PROC_RE[k].test(name+' '+spec));
+  let pname=name;if(model)pname=pname.split(model).join(' ');PROCESSES.forEach(k=>{pname=pname.replace(PROC_RE[k],' ')});pname=pname.replace(/\s+/g,' ').replace(/^[\s・,、\/()（）]+|[\s・,、\/()（）]+$/g,'').trim();
+  const memo=jn(get(r,'memo')),note=jn(get(r,'note')),dest=jn(get(r,'dest')),con=jn(get(r,'custOrderNo')),size=jn(get(r,'size')),lin=jn(get(r,'lining')),rem=numClean(get(r,'remain'));
+  const ex=[con?'注文番号 '+con:'',size&&/\d/.test(size)&&norm(size)!==norm(model)?'寸法 '+size:'',lin&&/\d/.test(lin)?'使用ライニング '+lin:'',memo,note,dest?'納入先 '+dest:''].filter(Boolean);
+  out.push({no,ln,key:no?`${no}-${ln}`:'',customer:jn(get(r,'custName'))||get(r,'custCode'),model,pname,process,qty,code,
+   orderDate:parseDateAny(get(r,'orderDate')),dueDate:parseDateAny(get(r,'dueDate')),itemName:name,done:map.remain>=0&&rem==='0',
+   fee:FEE_RE.test(name),extra:ex,urgent:/(大至急|至急|特急|急ぎ|緊急)/.test([memo,note,name].join(' '))});
  }
- return out;
+ // 緊急対応費・送料などの付帯費用は、同じ受注番号の明細にまとめる（緊急なら「急ぎ」にする）
+ for(const f of out.filter(x=>x.fee)){const sib=out.filter(x=>!x.fee&&x.no&&x.no===f.no);
+  if(sib.length){f.merged=true;sib.forEach(x=>{x.extra.push(f.itemName);if(/(緊急|至急|特急)/.test(f.itemName))x.urgent=true})}}
+ return out.filter(x=>!x.merged);
 }
 const yMaps=()=>{try{return JSON.parse(localStorage.getItem('kanri-yayoi-map')||'{}')}catch(e){return{}}};
 const ySig=(rows,hasHeader)=>hasHeader?'h:'+rows[0].map(nk).join('|'):'n:'+Math.max(...rows.slice(0,20).map(r=>r.length));
 function openYayoiImport(initialFile){
- let rows=null,hasHeader=false,map={},fileName='',enc='',items=[];
+ let rows=null,hasHeader=false,map={},fileName='',enc='',items=[],preset=null;
  const w=openModal(`<div class="mhead"><h2>弥生販売のCSVを取り込む</h2><span class="sp"></span><button class="icon-btn" data-close aria-label="閉じる">${I('x')}</button></div>
  <div class="mbody">
   <div class="btnrow"><button type="button" class="btn primary" data-y="pick">${I('doc')}CSVファイルを選ぶ</button></div>
@@ -857,19 +878,19 @@ function openYayoiImport(initialFile){
   const c={new:0,dup:0,upd:0,ng:0};items.forEach(it=>c[it.st]++);
   const go=c.new+c.upd;btn.disabled=!go;btn.innerHTML=`${I('check')}${go}件を取り込む`;
   $('#ySum',w).textContent=`新規 ${c.new}件・取込済み ${c.dup}件${c.upd?`・更新 ${c.upd}件`:''}${c.ng?`・型番なし ${c.ng}件`:''}`;
-  $('#yPrev',w).innerHTML=`<table class="ytable"><tr><th>状態</th><th>受注番号</th><th>受注日</th><th>納期</th><th>得意先</th><th>加工区分</th><th>型番</th><th>数量</th><th>商品名</th></tr>${items.slice(0,200).map(it=>`<tr class="${it.st==='dup'?'dup':''}"><td><span class="yst ${it.st}">${ST[it.st]}</span></td><td>${esc(it.no)}${it.no?`<span class="mut">-${esc(it.ln)}</span>`:''}</td><td>${it.orderDate?fmtFull(it.orderDate):'—'}</td><td>${it.dueDate?fmtFull(it.dueDate):'<span style="color:var(--warn)">未設定</span>'}</td><td>${esc(it.customer)}</td><td>${procTags(it.process)}</td><td>${it.model?`<span class="model" style="margin-left:0">${esc(it.model)}</span>`:''}</td><td style="text-align:right">${esc(it.qty)}</td><td>${esc(it.itemName)}</td></tr>`).join('')}</table>${items.length>200?`<p class="hint">ほか ${items.length-200}件</p>`:''}`;
+  $('#yPrev',w).innerHTML=`<table class="ytable"><tr><th>状態</th><th>受注番号</th><th>受注日</th><th>納期</th><th>得意先</th><th>加工区分</th><th>型番</th><th>数量</th><th>商品名</th></tr>${items.slice(0,200).map(it=>`<tr class="${it.st==='dup'?'dup':''}"><td><span class="yst ${it.st}">${ST[it.st]}</span>${it.done?' <span class="yst dup">完了</span>':''}${it.urgent?' <span class="yst ng">急ぎ</span>':''}</td><td>${esc(it.no)}${it.no?`<span class="mut">-${esc(it.ln)}</span>`:''}</td><td>${it.orderDate?fmtFull(it.orderDate):'—'}</td><td>${it.dueDate?fmtFull(it.dueDate):'<span style="color:var(--warn)">未設定</span>'}</td><td>${esc(it.customer)}</td><td>${procTags(it.process)}</td><td>${it.model?`<span class="model" style="margin-left:0">${esc(it.model)}</span>`:''}</td><td style="text-align:right">${esc(it.qty)}</td><td>${esc(it.itemName)}</td></tr>`).join('')}</table>${items.length>200?`<p class="hint">ほか ${items.length-200}件</p>`:''}`;
   if(!items.length)$('#yPrev',w).innerHTML='<p class="hint" style="padding:10px">取り込める明細が見つかりません。下の「列の割り当て」で「商品名」の列を選んでください。</p>';
  };
  const colOpts=k=>{const n=Math.max(...rows.slice(0,50).map(r=>r.length)),ex=hasHeader?rows[1]||[]:rows[0]||[];
   return `<option value="-1">（使わない）</option>`+Array.from({length:n},(_,j)=>{const head=hasHeader?(rows[0][j]||'').trim():'';const e=(ex[j]||'').trim().slice(0,14);return `<option value="${j}" ${map[k]===j?'selected':''}>${j+1}列目${head?`：${esc(head)}`:''}${e?`（例 ${esc(e)}）`:''}</option>`}).join('')};
  const draw=()=>{
-  body.innerHTML=`<div class="yinfo"><span>${I('doc')} <b>${esc(fileName)}</b></span><span>${rows.length-(hasHeader?1:0)}行</span><span>${enc}</span><label class="chk" style="min-height:0"><input type="checkbox" id="yHead" ${hasHeader?'checked':''} style="accent-color:var(--accent)">1行目は見出し</label></div>
+  body.innerHTML=`<div class="yinfo"><span>${I('doc')} <b>${esc(fileName)}</b></span><span>${rows.length-(hasHeader?1:0)}行</span><span>${enc}</span>${preset?`<span style="color:var(--ok);font-weight:700">${I('check')} ${preset.name}の形式として読み込みました</span>`:''}<label class="chk" style="min-height:0"><input type="checkbox" id="yHead" ${hasHeader?'checked':''} style="accent-color:var(--accent)">1行目は見出し</label></div>
   <section class="fs"><h3>列の割り当て <small>自動で判定しました。違っていれば直してください（次回から同じ形式のファイルは自動で同じ設定になります）</small></h3>
    <div class="ymap">${YF.map(([k,l])=>`<label class="f ${YREQ.includes(k)?'req':''}"><span>${l}</span><select data-k="${k}">${colOpts(k)}</select></label>`).join('')}</div></section>
   <section class="fs"><h3>取り込み内容の確認</h3>
    <label class="chk" style="min-height:0;margin-bottom:6px"><input type="checkbox" id="yUpd" style="accent-color:var(--accent)">取込済みの注文も、弥生の内容（納期・数量など）で更新する</label>
    <div class="ytable-wrap" id="yPrev"></div>
-   <p class="hint">型番は「規格・型番」→ 商品名の中の型番 → 商品コード の順で探します。加工区分（接着・張替・リベット）は商品名から自動で選びます。写真や「完了」の状態は更新しても消えません。</p></section>`;
+   <p class="hint">受注残数が0の明細（出荷済み）は「完了」として取り込みます（前回の注文日に使われます）。緊急対応費・送料などの行は、同じ受注番号の明細の備考にまとめます。型番は「規格・型番」→ 商品名の中の型番 → 商品コード の順で探します。加工区分（接着・張替・リベット）は商品名から自動で選びます。写真や「完了」の状態は更新しても消えません。</p></section>`;
   $('#yHead',w).onchange=e=>{hasHeader=e.target.checked;const saved=yMaps()[ySig(rows,hasHeader)];map=saved||guessMap(rows,hasHeader);draw()};
   $('#yUpd',w).onchange=preview;
   $$('select[data-k]',w).forEach(sel=>sel.onchange=()=>{map[sel.dataset.k]=+sel.value;preview()});
@@ -878,7 +899,10 @@ function openYayoiImport(initialFile){
  const load=async f=>{
   try{const r=await readTextAuto(f);rows=parseCSV(r.text);enc=r.enc;fileName=f.name||'CSV'}catch(e){toast('ファイルを読み込めませんでした');return}
   if(!rows.length){toast('データが入っていません');return}
-  hasHeader=isHeaderRow(rows[0]);const saved=yMaps()[ySig(rows,hasHeader)];map=saved?{...guessMap(rows,hasHeader),...saved}:guessMap(rows,hasHeader);draw();
+  hasHeader=isHeaderRow(rows[0]);preset=hasHeader?null:YPRESETS.find(pr=>pr.test(rows))||null;
+  const saved=yMaps()[ySig(rows,hasHeader)],base=guessMap(rows,hasHeader);
+  if(preset){Object.keys(base).forEach(k=>base[k]=-1);Object.assign(base,preset.map)}
+  map=saved&&saved.__v===2?{...base,...saved}:base;delete map.__v;draw();
  };
  const isCSV=f=>/\.(csv|txt|tsv)$/i.test(f.name||'')||/csv|text\/plain|tab-separated/.test(f.type||'');
  enableDrop(w,'.modal',(z,fs)=>{const f=fs.find(isCSV)||fs[0];if(f)load(f)});
@@ -886,23 +910,24 @@ function openYayoiImport(initialFile){
   if(e.target.closest('[data-y=pick]')){const[f]=await pickFiles({accept:'.csv,.txt,.tsv,text/csv,text/plain',multiple:false});if(f)load(f);return}
   if(!e.target.closest('[data-o=apply]')||btn.disabled)return;
   btn.disabled=true;
-  try{const m=yMaps();m[ySig(rows,hasHeader)]=map;localStorage.setItem('kanri-yayoi-map',JSON.stringify(m))}catch(err){}
+  try{const m=yMaps();m[ySig(rows,hasHeader)]={...map,__v:2};localStorage.setItem('kanri-yayoi-map',JSON.stringify(m))}catch(err){}
   const ex=existing(),now=Date.now();let nNew=0,nUpd=0,nProd=0;
   const todo=items.filter(it=>it.st==='new'||it.st==='upd').sort((a,b)=>(a.orderDate||'').localeCompare(b.orderDate||''));
   for(let i=0;i<todo.length;i++){const it=todo[i];
-   let p=it.model?findProductBy('',it.model):findProductBy(it.pname,'');
+   let p=(it.code&&state.products.find(x=>x.yayoiCode===it.code))||(it.model?findProductBy('',it.model):findProductBy(it.pname,''));
    const goodName=it.pname&&it.pname.length<=30&&new RegExp(JCH).test(it.pname)?it.pname:'';
-   if(!p){p={id:uid(),name:goodName,model:it.model,drawings:[],ironUrl:'',liningUrl:'',photos:[],createdAt:now+i};state.products.push(p);await DB.put('products',p);nProd++}
-   else if(!p.name&&goodName){p.name=goodName;await DB.put('products',p)}
+   if(!p){p={id:uid(),name:goodName,model:it.model,yayoiCode:it.code||'',drawings:[],ironUrl:'',liningUrl:'',photos:[],createdAt:now+i};state.products.push(p);await DB.put('products',p);nProd++}
+   else if((!p.name&&goodName)||(it.code&&!p.yayoiCode)){if(!p.name&&goodName)p.name=goodName;if(it.code&&!p.yayoiCode)p.yayoiCode=it.code;await DB.put('products',p)}
    const note=[it.no?`受注No.${it.no}`:'',...it.extra].filter(Boolean).join(' / ');
    const o=it.st==='upd'?ex.get(it.key):null;
-   if(o){Object.assign(o,{customer:it.customer||o.customer,productId:p.id,model:p.model||it.model,process:it.process.length?it.process:o.process,qty:it.qty||o.qty,orderDate:it.orderDate||o.orderDate,dueDate:it.dueDate||o.dueDate,urgent:o.urgent||it.urgent,note:o.note||note,updatedAt:now});await DB.put('orders',o);nUpd++}
+   if(o){Object.assign(o,{customer:it.customer||o.customer,productId:p.id,model:p.model||it.model,process:it.process.length?it.process:o.process,qty:it.qty||o.qty,orderDate:it.orderDate||o.orderDate,dueDate:it.dueDate||o.dueDate,urgent:o.urgent||it.urgent,note:o.note||note,done:o.done||it.done,updatedAt:now});await DB.put('orders',o);nUpd++}
    else{const od=it.orderDate||today();
-    const no={id:uid(),customer:it.customer,productId:p.id,name:'',process:it.process,model:p.model||it.model,qty:it.qty,orderDate:od,dueDate:it.dueDate,prevOrderDate:prevOrderOf(p.id,null,od),urgent:it.urgent,note,photos:[],done:false,createdAt:now+i,yayoiKey:it.key,source:'yayoi'};
+    const no={id:uid(),customer:it.customer,productId:p.id,name:'',process:it.process,model:p.model||it.model,qty:it.qty,orderDate:od,dueDate:it.dueDate,prevOrderDate:prevOrderOf(p.id,null,od),urgent:it.urgent,note,photos:[],done:!!it.done,createdAt:now+i,yayoiKey:it.key,source:'yayoi'};
     await DB.put('orders',no);state.orders.push(no);nNew++}
   }
   closeModal(w);refreshDatalists();if(state.tab!=='orders')state.tab='orders';render();
-  toast(`取り込みました：新規 ${nNew}件${nUpd?`・更新 ${nUpd}件`:''}${nProd?`（新しい製品 ${nProd}件も登録）`:''}`);
+  const nDone=todo.filter(x=>x.done&&x.st==='new').length;
+  toast(`取り込みました：新規 ${nNew}件${nDone?`（うち出荷済み ${nDone}件は完了）`:''}${nUpd?`・更新 ${nUpd}件`:''}${nProd?`・新しい製品 ${nProd}件`:''}`);
  });
  if(initialFile)setTimeout(()=>load(initialFile),0);
  return w;
@@ -1256,7 +1281,9 @@ async function renderSettings(){
   <li class="only-tab">音声ボタンが使えない場合は、キーボードのマイクボタンで話すと入力できます。</li>
   <li class="only-pc">注文書の画像を注文一覧にドラッグすると、読み取って注文を登録できます。図面・写真も各欄にドラッグで追加できます。</li>
   <li class="only-pc">キーボード：<kbd>N</kbd> 新しい注文 ／ <kbd>/</kbd> 絞り込み ／ <kbd>1</kbd>〜<kbd>4</kbd> 画面切替 ／ <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 ／ <kbd>Esc</kbd> 閉じる</li></ul></div>
- <p class="hint" style="text-align:center">受注・製品管理 v1.5</p>`;
+ <div class="panel"><h3>アプリの版</h3><p>いまの版：<b>${APP_VERSION}</b>　ネットにつながっていれば、起動するたびに最新版が自動で読み込まれます。</p>
+  <div class="btnrow"><button class="btn" data-action="check-update">${I('down')}最新版を確認</button></div></div>
+ <p class="hint" style="text-align:center">受注・製品管理 ${APP_VERSION}</p>`;
  $('#ownName').onchange=e=>{try{localStorage.setItem('kanri-own',e.target.value.trim())}catch(err){}toast('自社名を保存しました')};
  showOcrState();
  try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();$('#usage').textContent=(e.usage/1048576).toFixed(1)+' MB'}}catch(e){}
@@ -1316,8 +1343,17 @@ let layoutT;addEventListener('resize',()=>{clearTimeout(layoutT);layoutT=setTime
 const setTopH=()=>{const t=$('.topbar');if(t)document.documentElement.style.setProperty('--toph',t.offsetHeight+'px')};
 
 /* ========== 画面切り替え・操作 ========== */
+const APP_VERSION='v1.6';
+async function checkUpdate(){
+ const reg=window.__swReg;if(!reg){toast('このページはアプリとして登録されていません');return}
+ toast('最新版を確認しています…');
+ try{await reg.update();if(reg.installing||reg.waiting){toast('新しい版を読み込んでいます…');return}
+  const r=await fetch('index.html',{cache:'no-store'});const t=await r.text();const v=(t.match(/APP_VERSION='([^']+)'/)||[])[1];
+  if(v&&v!==APP_VERSION){toast(`新しい版（${v}）に切り替えます`);setTimeout(()=>location.reload(),800)}else toast(`最新版です（${APP_VERSION}）`)}
+ catch(e){toast('ネットにつながっていないため確認できません')}
+}
 const TABS=[['orders','注文','list'],['products','製品','box'],['search','検索','search'],['settings','設定','gear']];
-$('#tabbar').innerHTML=`<div class="brand only-pc"><img src="icon-192.png" alt="">受注・製品管理</div>`+TABS.map(([k,l,i])=>`<button data-tab="${k}">${I(i)}<span>${l}</span></button>`).join('')+`<div class="kbd-hint only-pc"><kbd>N</kbd> 新しい注文<br><kbd>/</kbd> 絞り込み・検索<br><kbd>1</kbd>〜<kbd>4</kbd> 画面切替<br><kbd>Ctrl</kbd>+<kbd>S</kbd> 保存<br><kbd>Esc</kbd> 閉じる</div>`;
+$('#tabbar').innerHTML=`<div class="brand only-pc"><img src="icon-192.png" alt=""><span>受注・製品管理<br><small style="font-weight:600;color:var(--muted);font-size:11px">${APP_VERSION}</small></span></div>`+TABS.map(([k,l,i])=>`<button data-tab="${k}">${I(i)}<span>${l}</span></button>`).join('')+`<div class="kbd-hint only-pc"><kbd>N</kbd> 新しい注文<br><kbd>/</kbd> 絞り込み・検索<br><kbd>1</kbd>〜<kbd>4</kbd> 画面切替<br><kbd>Ctrl</kbd>+<kbd>S</kbd> 保存<br><kbd>Esc</kbd> 閉じる</div>`;
 $('#tabbar').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(rec)rec.stop();state.tab=b.dataset.tab;window.scrollTo(0,0);render()}});
 function render(){
  document.body.dataset.tab=state.tab;$$('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===state.tab));
@@ -1362,6 +1398,7 @@ document.addEventListener('click',async e=>{
   case 'export':exportData().catch(err=>alert('書き出しに失敗しました：'+err.message));break;
   case 'ocr-download':downloadOcr();break;
   case 'csv':exportCSV();break;
+  case 'check-update':checkUpdate();break;
   case 'layout':try{localStorage.setItem('kanri-layout',el.dataset.v)}catch(err){}applyLayout();render();toast(el.dataset.v==='auto'?'画面の大きさで自動切替にしました':el.dataset.v==='pc'?'PC表示にしました':'iPad表示にしました');break;
   case 'import':importData().catch(err=>alert('復元に失敗しました：'+err.message));break;
  }
@@ -1376,7 +1413,17 @@ document.addEventListener('click',async e=>{
  let day=today();setInterval(()=>{if(today()!==day){day=today();if(state.tab==='orders'&&!$('#modalRoot').children.length)renderOrderList()}},60000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.tab==='orders'&&!$('#modalRoot').children.length)renderOrderList()});
  try{if(navigator.storage&&navigator.storage.persist&&!(await navigator.storage.persisted()))navigator.storage.persist()}catch(e){}
- if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+ if('serviceWorker' in navigator&&/^https?:/.test(location.protocol)){
+  const hadCtrl=!!navigator.serviceWorker.controller;let reloading=false;
+  // 新しい版が入ったら自動で切り替える（入力中なら閉じたあとに）
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!hadCtrl||reloading)return;
+   const go=()=>{reloading=true;location.reload()};
+   if(!$('#modalRoot').children.length)go();else{toast('新しい版があります。画面を閉じると自動で更新します');const t=setInterval(()=>{if(!$('#modalRoot').children.length){clearInterval(t);go()}},1000)}});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+   window.__swReg=reg;
+   document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{})});
+  }).catch(()=>{});
+ }
 })();
 </script>
 </body>
