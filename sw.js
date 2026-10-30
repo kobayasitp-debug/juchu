@@ -1,5 +1,5 @@
 // オフライン用キャッシュ。アプリを更新したら VERSION を変える
-const VERSION = 'kanri-v5';
+const VERSION = 'kanri-v6';
 // 文字読み取り用の大きなファイルは別に保管（アプリ更新のたびに再ダウンロードしない）
 const OCR_CACHE = 'kanri-ocr-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];

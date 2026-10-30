@@ -275,7 +275,7 @@ html[data-layout=pc] .pcard:hover,html[data-layout=pc] .rcard:hover{border-color
 kbd{font-family:inherit;font-size:11px;font-weight:700;padding:1px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--card);color:var(--ink)}
 .drop-on{outline:3px dashed var(--accent)!important;outline-offset:2px;background:var(--accent-weak)!important}
 .dropzone{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);font-size:14px;font-weight:600;margin-top:12px}
-body.dropping main::after{content:'注文書の画像をここにドロップすると、読み取って注文を登録します';position:fixed;top:90px;bottom:24px;right:28px;left:calc(var(--side,0px) + 28px);display:flex;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:16px;background:var(--accent-weak);opacity:.95;color:var(--accent);font-size:20px;font-weight:700;z-index:40;pointer-events:none}
+body.dropping main::after{content:'注文書の画像、または弥生販売のCSVをドロップすると注文を登録します';position:fixed;top:90px;bottom:24px;right:28px;left:calc(var(--side,0px) + 28px);display:flex;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:16px;background:var(--accent-weak);opacity:.95;color:var(--accent);font-size:20px;font-weight:700;z-index:40;pointer-events:none}
 .viewer{overflow:hidden}
 .viewer img{user-select:none;-webkit-user-drag:none}
 .vhint{font-size:12px;opacity:.75}
@@ -293,7 +293,10 @@ html{--ocols:88px minmax(150px,1.6fr) minmax(110px,1fr) minmax(130px,1fr) 52px 1
 .orow.urgent:hover{filter:brightness(.98)}
 .orow.done{opacity:.55}
 .orow .c{min-width:0}
-.orow .cust-c{font-weight:700;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.orow .cust-c{font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap;min-width:0}
+.orow .cust-c .cn{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.orow .cust-c>:not(.cn){flex:none}
+.orow .cust-c .src{margin-left:0}
 .orow .model{margin-left:0}
 .orow .num,.ohead .num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .orow .dates{font-size:13px;line-height:1.4}
@@ -311,6 +314,21 @@ html{--ocols:88px minmax(150px,1.6fr) minmax(110px,1fr) minmax(130px,1fr) 52px 1
 .dm.over i{background:#7a271a;color:#fff}
 .otable .group-h{margin:0;padding:12px 14px 6px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
 .otable .ohead+.group-h{border-radius:0}
+
+.ymap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px}
+@media (max-width:760px){.ymap{grid-template-columns:1fr 1fr}}
+.ymap select{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 10px;font-size:15px}
+.ymap .f.req>span::after{content:' *';color:var(--urgent)}
+.yinfo{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:14px;color:var(--muted);margin:12px 0 4px}
+.yinfo b{color:var(--ink)}
+.ytable-wrap{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+.ytable{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+.ytable th{position:sticky;top:0;background:var(--soft);text-align:left;font-size:12px;color:var(--muted);padding:8px;border-bottom:1px solid var(--line)}
+.ytable td{padding:7px 8px;border-bottom:1px solid var(--line)}
+.ytable tr.dup td{color:var(--muted)}
+.yst{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.yst.new{background:var(--ok-bg);color:var(--ok)}.yst.dup{background:var(--soft);color:var(--muted)}.yst.upd{background:var(--accent-weak);color:var(--accent)}.yst.ng{background:var(--urgent-bg);color:var(--urgent)}
+.src{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-left:6px;vertical-align:1px}
 
 #toast{position:fixed;left:50%;bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 90px);transform:translate(-50%,20px);background:#1d2433;color:#fff;padding:12px 20px;border-radius:12px;font-size:15px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:100;max-width:90%;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
@@ -729,6 +747,167 @@ function openProcessPicker(current,onChange){
 }
 const pTitle=p=>p?(p.name||p.model||'（名称なし）'):'';
 
+/* ========== 弥生販売CSVの取り込み ========== */
+const YF=[ // [項目, 表示名, 見出しの判定]
+ ['orderNo','受注番号',/^(受注番号|受注No|受注NO|伝票番号|伝票No|伝票NO)/i],
+ ['orderDate','受注日',/^(受注日|受注日付|伝票日付|日付)$/],
+ ['dueDate','納期（納入期日）',/(納入期日|納期|納品日|納入日|出荷予定日|納入予定日)/],
+ ['custName','得意先名',/^(得意先名|得意先名称|得意先略称|顧客名|取引先名|得意先)$/],
+ ['custCode','得意先コード',/^(得意先コード|得意先CD|得意先ｺｰﾄﾞ)$/i],
+ ['itemName','商品名',/^(商品名|品名|商品名\/摘要|商品名・摘要|商品名称)/],
+ ['spec','規格・型番',/(規格|型番|品番)/],
+ ['itemCode','商品コード',/^(商品コード|商品CD|商品ｺｰﾄﾞ)$/i],
+ ['qty','数量',/^(数量|受注数|受注数量)$/],
+ ['lineNo','行番号',/^(行番号|行No|明細番号|明細No|行)$/i],
+ ['memo','摘要（伝票）',/^(摘要|伝票摘要)$/],
+ ['note','備考（明細）',/^(備考|明細備考)/],
+ ['dest','納入先',/^納入先(名)?$/],
+];
+const YREQ=['itemName'];
+const nk=v=>String(v??'').normalize('NFKC').replace(/\s/g,'');
+async function readTextAuto(file){const buf=await file.arrayBuffer();try{return{text:new TextDecoder('utf-8',{fatal:true}).decode(buf).replace(/^﻿/,''),enc:'UTF-8'}}catch(e){return{text:new TextDecoder('shift_jis').decode(buf),enc:'Shift-JIS'}}}
+function parseCSV(t){
+ const first=t.slice(0,t.indexOf('\n')>0?t.indexOf('\n'):t.length),d=first.split('\t').length>first.split(',').length?'\t':',';
+ const rows=[];let row=[],f='',q=false;
+ for(let i=0;i<t.length;i++){const c=t[i];
+  if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+  else if(c==='"'&&f==='')q=true;else if(c===d){row.push(f);f=''}else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}else if(c!=='\r')f+=c}
+ if(f!==''||row.length){row.push(f);rows.push(row)}
+ return rows.filter(r=>r.some(v=>v.trim()!==''));
+}
+function parseDateAny(v){v=String(v??'').normalize('NFKC').trim();let m;
+ if((m=v.match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/)))return mkDate(+m[1],+m[2],+m[3])||'';
+ if((m=v.match(/^(\d{4})(\d{2})(\d{2})$/)))return mkDate(+m[1],+m[2],+m[3])||'';
+ if((m=v.match(/^(?:R|令和)\s*(\d{1,2}|元)[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/i)))return mkDate(2018+(m[1]==='元'?1:+m[1]),+m[2],+m[3])||'';
+ if((m=v.match(/^(\d{2})[\/.](\d{1,2})[\/.](\d{1,2})$/)))return mkDate(2000+ +m[1],+m[2],+m[3])||'';
+ return '';
+}
+const numClean=v=>{v=String(v??'').normalize('NFKC').replace(/[,\s]/g,'');return /^-?\d+(\.\d+)?$/.test(v)?String(+v):v};
+const isHeaderRow=r=>r.filter(c=>YF.some(([, ,re])=>re.test(nk(c)))).length>=2;
+function guessMap(rows,hasHeader){
+ const n=Math.max(...rows.slice(0,50).map(r=>r.length)),map={};YF.forEach(([k])=>map[k]=-1);
+ if(hasHeader){const h=rows[0].map(nk),used=new Set();
+  for(const[k, ,re]of YF){const i=h.findIndex((c,j)=>!used.has(j)&&re.test(c));if(i>=0){map[k]=i;used.add(i)}}
+  return map}
+ // 見出しが無いときは中身から推測
+ const sample=rows.slice(0,60),st=[],ANYP=new RegExp(MODEL_TOKEN.source+'|接着|張替|張り替|リベット');
+ for(let j=0;j<n;j++){const vs=sample.map(r=>(r[j]||'').trim().normalize('NFKC')).filter(Boolean),c=vs.length||1;
+  st.push({j,fill:vs.length/sample.length,date:vs.filter(v=>parseDateAny(v)).length/c,int:vs.filter(v=>/^\d+(\.0+)?$/.test(numClean(v))).length/c,
+   zero:vs.filter(v=>/^0\d+$/.test(v)).length/c,model:vs.filter(v=>new RegExp('^'+MODEL_TOKEN.source+'$').test(v)).length/c,comp:vs.filter(v=>COMP.test(v)).length/c,
+   jp:vs.filter(v=>new RegExp(JCH).test(v)).length/c,item:vs.filter(v=>new RegExp(JCH).test(v)&&ANYP.test(v)).length/c,big:vs.filter(v=>+numClean(v)>=1000).length/c,max:Math.max(0,...vs.map(v=>+numClean(v)||0))})}
+ const used=new Set(),take=(k,f,sort)=>{let c=st.filter(x=>!used.has(x.j)&&x.fill>0&&f(x));if(sort)c=c.sort(sort);if(c.length){map[k]=c[0].j;used.add(c[0].j)}};
+ const dates=st.filter(x=>x.date>.8);
+ if(dates[0]){map.orderDate=dates[0].j;used.add(dates[0].j)}
+ if(dates[1]){map.dueDate=dates[1].j;used.add(dates[1].j)}
+ take('orderNo',x=>x.int>.9&&x.zero<.5&&x.big>.5);
+ take('custCode',x=>x.zero>.8);
+ take('custName',x=>x.comp>.5);
+ take('itemName',x=>x.jp>.6&&x.comp<.5,(a,b)=>b.item-a.item);
+ const models=st.filter(x=>!used.has(x.j)&&x.model>.6);
+ if(models.length>=2){map.itemCode=models[0].j;map.spec=models[models.length-1].j;used.add(models[0].j);used.add(models[models.length-1].j)}
+ else if(models.length===1){map.spec=models[0].j;used.add(models[0].j)}
+ // 数量：商品名より右にある、小さめの整数の列（行番号のように 1,2,1,2… と繰り返す列は除く）
+ const after=map.itemName>=0?map.itemName:0;
+ const lineLike=x=>{const vs=sample.map(r=>+numClean(r[x.j]||''));return vs.length>2&&vs.every(v=>v>=1&&v<=30)&&vs.filter(v=>v===1).length>=vs.length/3};
+ take('lineNo',x=>x.int>.9&&x.j<after&&lineLike(x));
+ take('qty',x=>x.int>.9&&x.big<.5&&x.zero<.5&&x.j>after,(a,b)=>a.j-b.j);
+ return map;
+}
+function buildFromCSV(rows,map,hasHeader){
+ const data=hasHeader?rows.slice(1):rows,get=(r,k)=>map[k]>=0?String(r[map[k]]??'').trim():'',out=[],lineCount={};
+ for(const r of data){
+  const no=get(r,'orderNo'),name=get(r,'itemName'),code=get(r,'itemCode'),spec=get(r,'spec'),qty=numClean(get(r,'qty'));
+  if(!name&&!code&&!spec)continue;
+  // 商品コードも型番も数量もない行は「摘要行」→ 同じ伝票の直前の明細の備考へ
+  const last=out[out.length-1];
+  if(!code&&!spec&&!qty&&last&&last.no===no){last.extra.push(name);continue}
+  lineCount[no]=(lineCount[no]||0)+1;
+  const ln=get(r,'lineNo')||String(lineCount[no]);
+  const nn=name.normalize('NFKC'),ns=spec.normalize('NFKC');
+  let model='';if(ns&&/\d/.test(ns))model=ns;
+  if(!model){const m=nn.match(MODEL_TOKEN);if(m)model=m[0]}
+  if(!model)model=code.normalize('NFKC');
+  const process=PROCESSES.filter(k=>PROC_RE[k].test(nn+' '+ns));
+  let pname=nn;if(model)pname=pname.split(model).join(' ');PROCESSES.forEach(k=>{pname=pname.replace(PROC_RE[k],' ')});pname=pname.replace(/\s+/g,' ').replace(/^[\s・,、\/()（）]+|[\s・,、\/()（）]+$/g,'').trim();
+  const memo=get(r,'memo'),note=get(r,'note'),dest=get(r,'dest');
+  out.push({no,ln,key:no?`${no}-${ln}`:'',customer:get(r,'custName')||get(r,'custCode'),model,pname,process,qty,
+   orderDate:parseDateAny(get(r,'orderDate')),dueDate:parseDateAny(get(r,'dueDate')),itemName:name,
+   extra:[memo,note,dest?'納入先 '+dest:''].filter(Boolean),urgent:/(大至急|至急|特急|急ぎ|緊急)/.test([memo,note,name].join(' '))});
+ }
+ return out;
+}
+const yMaps=()=>{try{return JSON.parse(localStorage.getItem('kanri-yayoi-map')||'{}')}catch(e){return{}}};
+const ySig=(rows,hasHeader)=>hasHeader?'h:'+rows[0].map(nk).join('|'):'n:'+Math.max(...rows.slice(0,20).map(r=>r.length));
+function openYayoiImport(initialFile){
+ let rows=null,hasHeader=false,map={},fileName='',enc='',items=[];
+ const w=openModal(`<div class="mhead"><h2>弥生販売のCSVを取り込む</h2><span class="sp"></span><button class="icon-btn" data-close aria-label="閉じる">${I('x')}</button></div>
+ <div class="mbody">
+  <div class="btnrow"><button type="button" class="btn primary" data-y="pick">${I('doc')}CSVファイルを選ぶ</button></div>
+  <div class="dropzone only-pc">弥生販売から書き出したCSVファイルをこの画面にドラッグ</div>
+  <p class="hint">弥生販売で受注伝票をエクスポートしたファイル（CSV・タブ区切り、Shift-JIS／UTF-8どちらも可）。同じ受注番号の明細は、取り込み済みならスキップします。</p>
+  <div id="yBody"></div>
+ </div>
+ <div class="mfoot"><span class="hint" id="ySum" style="margin:0"></span><span class="sp"></span><button class="btn" data-close>キャンセル</button><button class="btn primary" data-o="apply" disabled>${I('check')}取り込む</button></div>`,{wide:true});
+ const body=$('#yBody',w),btn=$('[data-o=apply]',w);
+ const existing=()=>{const m=new Map();state.orders.forEach(o=>{if(o.yayoiKey)m.set(o.yayoiKey,o)});return m};
+ const status=it=>{if(!it.model&&!it.pname)return'ng';const ex=it.key&&existing().get(it.key);return ex?($('#yUpd',w)&&$('#yUpd',w).checked?'upd':'dup'):'new'};
+ const ST={new:'新規',dup:'取込済み',upd:'更新',ng:'型番なし'};
+ const preview=()=>{
+  items=buildFromCSV(rows,map,hasHeader);items.forEach(it=>it.st=status(it));
+  const c={new:0,dup:0,upd:0,ng:0};items.forEach(it=>c[it.st]++);
+  const go=c.new+c.upd;btn.disabled=!go;btn.innerHTML=`${I('check')}${go}件を取り込む`;
+  $('#ySum',w).textContent=`新規 ${c.new}件・取込済み ${c.dup}件${c.upd?`・更新 ${c.upd}件`:''}${c.ng?`・型番なし ${c.ng}件`:''}`;
+  $('#yPrev',w).innerHTML=`<table class="ytable"><tr><th>状態</th><th>受注番号</th><th>受注日</th><th>納期</th><th>得意先</th><th>加工区分</th><th>型番</th><th>数量</th><th>商品名</th></tr>${items.slice(0,200).map(it=>`<tr class="${it.st==='dup'?'dup':''}"><td><span class="yst ${it.st}">${ST[it.st]}</span></td><td>${esc(it.no)}${it.no?`<span class="mut">-${esc(it.ln)}</span>`:''}</td><td>${it.orderDate?fmtFull(it.orderDate):'—'}</td><td>${it.dueDate?fmtFull(it.dueDate):'<span style="color:var(--warn)">未設定</span>'}</td><td>${esc(it.customer)}</td><td>${procTags(it.process)}</td><td>${it.model?`<span class="model" style="margin-left:0">${esc(it.model)}</span>`:''}</td><td style="text-align:right">${esc(it.qty)}</td><td>${esc(it.itemName)}</td></tr>`).join('')}</table>${items.length>200?`<p class="hint">ほか ${items.length-200}件</p>`:''}`;
+  if(!items.length)$('#yPrev',w).innerHTML='<p class="hint" style="padding:10px">取り込める明細が見つかりません。下の「列の割り当て」で「商品名」の列を選んでください。</p>';
+ };
+ const colOpts=k=>{const n=Math.max(...rows.slice(0,50).map(r=>r.length)),ex=hasHeader?rows[1]||[]:rows[0]||[];
+  return `<option value="-1">（使わない）</option>`+Array.from({length:n},(_,j)=>{const head=hasHeader?(rows[0][j]||'').trim():'';const e=(ex[j]||'').trim().slice(0,14);return `<option value="${j}" ${map[k]===j?'selected':''}>${j+1}列目${head?`：${esc(head)}`:''}${e?`（例 ${esc(e)}）`:''}</option>`}).join('')};
+ const draw=()=>{
+  body.innerHTML=`<div class="yinfo"><span>${I('doc')} <b>${esc(fileName)}</b></span><span>${rows.length-(hasHeader?1:0)}行</span><span>${enc}</span><label class="chk" style="min-height:0"><input type="checkbox" id="yHead" ${hasHeader?'checked':''} style="accent-color:var(--accent)">1行目は見出し</label></div>
+  <section class="fs"><h3>列の割り当て <small>自動で判定しました。違っていれば直してください（次回から同じ形式のファイルは自動で同じ設定になります）</small></h3>
+   <div class="ymap">${YF.map(([k,l])=>`<label class="f ${YREQ.includes(k)?'req':''}"><span>${l}</span><select data-k="${k}">${colOpts(k)}</select></label>`).join('')}</div></section>
+  <section class="fs"><h3>取り込み内容の確認</h3>
+   <label class="chk" style="min-height:0;margin-bottom:6px"><input type="checkbox" id="yUpd" style="accent-color:var(--accent)">取込済みの注文も、弥生の内容（納期・数量など）で更新する</label>
+   <div class="ytable-wrap" id="yPrev"></div>
+   <p class="hint">型番は「規格・型番」→ 商品名の中の型番 → 商品コード の順で探します。加工区分（接着・張替・リベット）は商品名から自動で選びます。写真や「完了」の状態は更新しても消えません。</p></section>`;
+  $('#yHead',w).onchange=e=>{hasHeader=e.target.checked;const saved=yMaps()[ySig(rows,hasHeader)];map=saved||guessMap(rows,hasHeader);draw()};
+  $('#yUpd',w).onchange=preview;
+  $$('select[data-k]',w).forEach(sel=>sel.onchange=()=>{map[sel.dataset.k]=+sel.value;preview()});
+  preview();
+ };
+ const load=async f=>{
+  try{const r=await readTextAuto(f);rows=parseCSV(r.text);enc=r.enc;fileName=f.name||'CSV'}catch(e){toast('ファイルを読み込めませんでした');return}
+  if(!rows.length){toast('データが入っていません');return}
+  hasHeader=isHeaderRow(rows[0]);const saved=yMaps()[ySig(rows,hasHeader)];map=saved?{...guessMap(rows,hasHeader),...saved}:guessMap(rows,hasHeader);draw();
+ };
+ const isCSV=f=>/\.(csv|txt|tsv)$/i.test(f.name||'')||/csv|text\/plain|tab-separated/.test(f.type||'');
+ enableDrop(w,'.modal',(z,fs)=>{const f=fs.find(isCSV)||fs[0];if(f)load(f)});
+ w.addEventListener('click',async e=>{
+  if(e.target.closest('[data-y=pick]')){const[f]=await pickFiles({accept:'.csv,.txt,.tsv,text/csv,text/plain',multiple:false});if(f)load(f);return}
+  if(!e.target.closest('[data-o=apply]')||btn.disabled)return;
+  btn.disabled=true;
+  try{const m=yMaps();m[ySig(rows,hasHeader)]=map;localStorage.setItem('kanri-yayoi-map',JSON.stringify(m))}catch(err){}
+  const ex=existing(),now=Date.now();let nNew=0,nUpd=0,nProd=0;
+  const todo=items.filter(it=>it.st==='new'||it.st==='upd').sort((a,b)=>(a.orderDate||'').localeCompare(b.orderDate||''));
+  for(let i=0;i<todo.length;i++){const it=todo[i];
+   let p=it.model?findProductBy('',it.model):findProductBy(it.pname,'');
+   const goodName=it.pname&&it.pname.length<=30&&new RegExp(JCH).test(it.pname)?it.pname:'';
+   if(!p){p={id:uid(),name:goodName,model:it.model,drawings:[],ironUrl:'',liningUrl:'',photos:[],createdAt:now+i};state.products.push(p);await DB.put('products',p);nProd++}
+   else if(!p.name&&goodName){p.name=goodName;await DB.put('products',p)}
+   const note=[it.no?`受注No.${it.no}`:'',...it.extra].filter(Boolean).join(' / ');
+   const o=it.st==='upd'?ex.get(it.key):null;
+   if(o){Object.assign(o,{customer:it.customer||o.customer,productId:p.id,model:p.model||it.model,process:it.process.length?it.process:o.process,qty:it.qty||o.qty,orderDate:it.orderDate||o.orderDate,dueDate:it.dueDate||o.dueDate,urgent:o.urgent||it.urgent,note:o.note||note,updatedAt:now});await DB.put('orders',o);nUpd++}
+   else{const od=it.orderDate||today();
+    const no={id:uid(),customer:it.customer,productId:p.id,name:'',process:it.process,model:p.model||it.model,qty:it.qty,orderDate:od,dueDate:it.dueDate,prevOrderDate:prevOrderOf(p.id,null,od),urgent:it.urgent,note,photos:[],done:false,createdAt:now+i,yayoiKey:it.key,source:'yayoi'};
+    await DB.put('orders',no);state.orders.push(no);nNew++}
+  }
+  closeModal(w);refreshDatalists();if(state.tab!=='orders')state.tab='orders';render();
+  toast(`取り込みました：新規 ${nNew}件${nUpd?`・更新 ${nUpd}件`:''}${nProd?`（新しい製品 ${nProd}件も登録）`:''}`);
+ });
+ if(initialFile)setTimeout(()=>load(initialFile),0);
+ return w;
+}
+
 /* ========== 1. 注文 ========== */
 function groupOf(o){const d=daysLeft(o.dueDate);if(d===null)return'納期未設定';if(d<0)return'期限切れ';if(d===0)return'今日';if(d===1)return'明日';if(d<=7)return'1週間以内';return'それ以降'}
 function dueBlock(o){
@@ -743,7 +922,7 @@ function orderCard(o){
  return `<div class="order ${o.urgent&&!o.done?'urgent':''} ${o.done?'done':''}" data-action="edit-order" data-id="${o.id}">
   ${dueBlock(o)}
   <div class="ob">
-   <div class="r1">${o.urgent&&!o.done?`<span class="badge urgent">${I('flag')}急ぎ</span>`:''}${o.done?`<span class="badge done">${I('check')}完了</span>`:''}<span class="cust">${esc(o.customer||'（顧客名なし）')}</span></div>
+   <div class="r1">${o.urgent&&!o.done?`<span class="badge urgent">${I('flag')}急ぎ</span>`:''}${o.done?`<span class="badge done">${I('check')}完了</span>`:''}<span class="cust">${esc(o.customer||'（顧客名なし）')}</span>${o.source==='yayoi'?'<span class="src">弥生</span>':''}</div>
    <div class="prod">${(o.process&&o.process.length)?procTags(o.process):o.name?esc(o.name):''}${o.model?`<span class="model" style="${(o.process&&o.process.length)||o.name?'':'margin-left:0'}">${esc(o.model)}</span>`:'<span class="cust">（型番なし）</span>'}${o.qty!==''&&o.qty!=null?`<span class="qty">× ${esc(o.qty)}</span>`:''}</div>
    <div class="meta"><span>注文日 ${fmtFull(o.orderDate)}</span><span>前回 ${o.prevOrderDate?fmtFull(o.prevOrderDate):'なし'}</span></div>
    ${o.note?`<div class="note">${esc(o.note.split('\n')[0])}</div>`:''}
@@ -764,7 +943,7 @@ function orderRow(o){
  const ni=dn('iron'),nl=dn('lining'),ph=(o.photos||[]).length,st=dueState(o);
  return `<div class="orow ${o.urgent&&!o.done?'urgent':''} ${o.done?'done':''}" data-action="edit-order" data-id="${o.id}">
   <div class="c"><div class="dm ${st.cls}"><b>${o.dueDate?fmtMD(o.dueDate):'—'}${o.dueDate?`<span>(${wd(o.dueDate)})</span>`:''}</b><i>${st.left}</i></div></div>
-  <div class="c"><div class="cust-c">${o.urgent&&!o.done?`<span class="badge urgent">${I('flag')}急ぎ</span>`:''}${esc(o.customer||'—')}</div></div>
+  <div class="c"><div class="cust-c">${o.urgent&&!o.done?`<span class="badge urgent">${I('flag')}急ぎ</span>`:''}<span class="cn">${esc(o.customer||'—')}</span>${o.source==='yayoi'?'<span class="src">弥生</span>':''}</div></div>
   <div class="c">${(o.process&&o.process.length)?procTags(o.process):o.name?esc(o.name):'<span class="mut">—</span>'}</div>
   <div class="c">${o.model?`<span class="model">${esc(o.model)}</span>`:'<span class="mut">—</span>'}</div>
   <div class="c num">${esc(o.qty??'')}</div>
@@ -776,7 +955,7 @@ function orderRow(o){
 }
 function renderOrders(){
  $('#title').textContent='注文一覧';
- $('#topActions').innerHTML=`<button class="btn" data-action="new-order-ocr">${I('camera')}写真から登録</button><button class="btn primary" data-action="new-order">${I('plus')}注文を登録</button>`;
+ $('#topActions').innerHTML=`<button class="btn" data-action="yayoi">${I('up')}弥生CSV取込</button><button class="btn" data-action="new-order-ocr">${I('camera')}写真から登録</button><button class="btn primary" data-action="new-order">${I('plus')}注文を登録</button>`;
  $('#view').innerHTML=`<div class="toolbar">
   <div class="seg" id="oseg">${[['open','未完了'],['done','完了'],['all','すべて']].map(([v,l])=>`<button data-action="ofilter" data-v="${v}" class="${state.orderFilter===v?'on':''}">${l}</button>`).join('')}</div>
   <label class="chk"><input type="checkbox" id="urgentTop" ${state.urgentTop?'checked':''}>急ぎを先頭に</label>
@@ -1073,10 +1252,11 @@ async function renderSettings(){
   <li>前回の注文日は、同じ製品の過去の注文から自動で入ります。</li>
   <li>「写真から登録」で注文書を撮ると、顧客名・製品・数量・納期を読み取ります。登録済みの型番が写っていれば、製品と図面も自動で呼び出します。</li>
   <li>製品一覧の「撮影して登録」で、撮った写真がその製品にすぐ保存されます。</li>
+  <li>注文一覧の「弥生CSV取込」で、弥生販売から書き出した受注伝票のCSVをまとめて登録できます。同じ受注番号の明細は二重に登録されません。</li>
   <li class="only-tab">音声ボタンが使えない場合は、キーボードのマイクボタンで話すと入力できます。</li>
   <li class="only-pc">注文書の画像を注文一覧にドラッグすると、読み取って注文を登録できます。図面・写真も各欄にドラッグで追加できます。</li>
   <li class="only-pc">キーボード：<kbd>N</kbd> 新しい注文 ／ <kbd>/</kbd> 絞り込み ／ <kbd>1</kbd>〜<kbd>4</kbd> 画面切替 ／ <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 ／ <kbd>Esc</kbd> 閉じる</li></ul></div>
- <p class="hint" style="text-align:center">受注・製品管理 v1.4</p>`;
+ <p class="hint" style="text-align:center">受注・製品管理 v1.5</p>`;
  $('#ownName').onchange=e=>{try{localStorage.setItem('kanri-own',e.target.value.trim())}catch(err){}toast('自社名を保存しました')};
  showOcrState();
  try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();$('#usage').textContent=(e.usage/1048576).toFixed(1)+' MB'}}catch(e){}
@@ -1159,13 +1339,14 @@ document.addEventListener('keydown',e=>{
 /* ---- 注文一覧に注文書の画像をドロップ → 読み取って登録 ---- */
 addEventListener('dragover',e=>{if(!hasFiles(e))return;e.preventDefault();if(state.tab==='orders'&&!$('#modalRoot').children.length)document.body.classList.add('dropping')});
 addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('dropping')});
-addEventListener('drop',e=>{if(!hasFiles(e))return;e.preventDefault();document.body.classList.remove('dropping');if($('#modalRoot').children.length||state.tab!=='orders')return;const f=[...e.dataTransfer.files].find(f=>isImg(f.type));if(f)openOrderForm(null,{ocr:true,ocrFile:f});else toast('画像ファイル（JPEG・PNG）をドロップしてください')});
+addEventListener('drop',e=>{if(!hasFiles(e))return;e.preventDefault();document.body.classList.remove('dropping');if($('#modalRoot').children.length||state.tab!=='orders')return;const fs=[...e.dataTransfer.files],csv=fs.find(f=>/\.(csv|txt|tsv)$/i.test(f.name||'')||/csv/.test(f.type||''));if(csv){openYayoiImport(csv);return}const f=fs.find(f=>isImg(f.type));if(f)openOrderForm(null,{ocr:true,ocrFile:f});else toast('注文書の画像（JPEG・PNG）か、弥生のCSVをドロップしてください')});
 document.addEventListener('click',async e=>{
  const el=e.target.closest('[data-action]');if(!el||el.closest('[data-sticky]'))return;
  const a=el.dataset.action,id=el.dataset.id;
  switch(a){
   case 'new-order':openOrderForm(null);break;
   case 'new-order-ocr':openOrderForm(null,{ocr:true});break;
+  case 'yayoi':openYayoiImport();break;
   case 'edit-order':openOrderForm(state.orders.find(o=>o.id===id));break;
   case 'new-order-for':openOrderForm(null,{productId:id});break;
   case 'new-product':openProductForm(null);break;
