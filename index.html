@@ -1,0 +1,1202 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="受注管理">
+<meta name="theme-color" content="#f3f4f6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>受注・製品管理</title>
+<style>
+:root{
+  --bg:#f3f4f6;--card:#fff;--ink:#18202e;--muted:#667085;--line:#e4e7ec;--soft:#f8f9fb;
+  --accent:#1d4ed8;--accent-weak:#e8efff;
+  --urgent:#d92d20;--urgent-bg:#fff1ef;--urgent-line:#fecdca;
+  --warn:#b54708;--warn-bg:#fffaeb;
+  --ok:#067647;--ok-bg:#ecfdf3;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.07);
+  --tabh:64px;color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1115;--card:#1a1d23;--ink:#e8eaed;--muted:#9aa1ad;--line:#2b3038;--soft:#14171c;
+  --accent:#7aa2ff;--accent-weak:#1c2a47;
+  --urgent:#ff6b5e;--urgent-bg:#3a1714;--urgent-line:#6b2620;
+  --warn:#fdb022;--warn-bg:#33270c;
+  --ok:#4ade80;--ok-bg:#12301f;
+  --shadow:none;color-scheme:dark;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+body.noscroll{overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+.ic{width:20px;height:20px;flex:none;vertical-align:middle}
+.sp{flex:1}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top) + 12px) max(20px,env(safe-area-inset-right)) 12px max(20px,env(safe-area-inset-left));background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.02em}
+#topActions{margin-left:auto;display:flex;gap:8px}
+main{padding:16px max(20px,env(safe-area-inset-right)) calc(var(--tabh) + env(safe-area-inset-bottom) + 24px) max(20px,env(safe-area-inset-left));max-width:1200px;margin:0 auto}
+
+/* tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;gap:4px;height:calc(var(--tabh) + env(safe-area-inset-bottom));padding:6px 12px env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--line)}
+.tabbar button{flex:0 1 160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;border-radius:12px;color:var(--muted);font-size:12px;font-weight:600}
+.tabbar button .ic{width:24px;height:24px}
+.tabbar button.on{color:var(--accent);background:var(--accent-weak)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:15px;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--urgent)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px;border-radius:8px}
+.btn[disabled]{opacity:.35;pointer-events:none}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;border:0;background:transparent}
+
+/* toolbar */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:14px}
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;min-height:38px;padding:0 14px;border-radius:8px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button.on{background:var(--accent-weak);color:var(--accent)}
+.seg b{font-weight:700;margin-left:4px}
+.chk{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--muted);min-height:44px}
+.chk input{width:22px;height:22px;accent-color:var(--urgent)}
+.search-in{flex:1 1 240px;min-width:200px;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 14px;font-size:16px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.stat{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--muted)}
+.stat b{font-size:15px;color:var(--ink)}
+.stat.red{background:var(--urgent-bg);border-color:var(--urgent-line);color:var(--urgent)}.stat.red b{color:var(--urgent)}
+.stat.amber{background:var(--warn-bg);border-color:transparent;color:var(--warn)}.stat.amber b{color:var(--warn)}
+
+/* order list */
+.group-h{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.group-h:first-child{margin-top:4px}
+.group-h .n{font-weight:600}
+.group-h.red{color:var(--urgent)}
+.orders{display:flex;flex-direction:column;gap:8px}
+.order{display:grid;grid-template-columns:92px 1fr auto;gap:16px;align-items:center;padding:12px 14px 12px 12px;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;box-shadow:var(--shadow);cursor:pointer}
+.order.urgent{background:var(--urgent-bg);border-color:var(--urgent-line);border-left-color:var(--urgent)}
+.order.done{opacity:.6}
+.due{text-align:center;border-radius:10px;padding:8px 4px;background:var(--soft);line-height:1.2}
+.due .d{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.due .w{font-size:12px;color:var(--muted);font-weight:600}
+.due .left{margin-top:4px;font-size:12px;font-weight:700;color:var(--muted)}
+.due.soon{background:var(--warn-bg)}.due.soon .left{color:var(--warn)}
+.due.today{background:var(--urgent);color:#fff}.due.today .w,.due.today .left{color:#fff}
+.due.over{background:#7a271a;color:#fff}.due.over .w,.due.over .left{color:#fff}
+.ob{min-width:0}
+.ob .r1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cust{font-size:13px;font-weight:600;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700}
+.badge.urgent{background:var(--urgent);color:#fff}
+.badge.done{background:var(--ok-bg);color:var(--ok)}
+.prod{font-size:18px;font-weight:700;line-height:1.35;margin:2px 0}
+.model{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:14px;font-weight:600;color:var(--accent);background:var(--accent-weak);padding:1px 7px;border-radius:6px;margin-left:6px;white-space:nowrap}
+.qty{font-size:15px;font-weight:700;margin-left:8px;white-space:nowrap}
+.meta{font-size:13px;color:var(--muted)}
+.meta span+span::before{content:"・";margin:0 4px}
+.note{font-size:13px;color:var(--ink);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oa{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.oa .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dbtn{min-width:88px}
+.dbtn .n{font-size:12px;color:var(--muted);font-weight:700}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state .ic{width:44px;height:44px;opacity:.5;margin-bottom:8px}
+@media (max-width:700px){.order{grid-template-columns:76px 1fr}.oa{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}.oa .row{flex:1}.due .d{font-size:20px}}
+
+/* products */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.pcard{display:grid;grid-template-columns:84px 1fr;gap:14px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);cursor:pointer}
+.thumb{width:84px;height:84px;border-radius:10px;background:var(--soft);border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.pname{font-size:17px;font-weight:700;line-height:1.35}
+.pmodel{margin-top:2px}.pmodel .model{margin-left:0}
+.pmeta{font-size:13px;color:var(--muted);margin-top:4px}
+.pact{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+/* forms / modal */
+.modal-wrap{position:fixed;inset:0;z-index:50;background:rgba(10,14,22,.5);display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+.modal{background:var(--card);width:min(640px,100%);max-height:100%;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.modal.wide{width:min(860px,100%)}
+.mhead{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 20px;border-bottom:1px solid var(--line)}
+.mhead h2{margin:0;font-size:19px}
+.mbody{overflow:auto;-webkit-overflow-scrolling:touch;padding:18px 20px 24px}
+.mfoot{display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);background:var(--soft);flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px 14px}
+.c2{grid-column:span 2}.c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:1/-1}
+@media (max-width:700px){.grid{grid-template-columns:1fr 1fr}.c2,.c3{grid-column:span 1}.c4,.c6{grid-column:1/-1}}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f>span{font-size:13px;font-weight:700;color:var(--muted)}
+.f>span em{color:var(--urgent);font-style:normal}
+.f>span small{font-weight:600;color:var(--accent)}
+.f input,.f textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:0 12px;height:48px;font-size:17px}
+.f input[type=date]{-webkit-appearance:none;appearance:none;display:flex;align-items:center}
+.f textarea{height:auto;min-height:88px;padding:10px 12px;resize:vertical;line-height:1.5}
+.f input:focus,.f textarea:focus,.search-in:focus,.chatbar input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.urgent-toggle{justify-content:flex-end}
+.urgent-toggle input{position:absolute;opacity:0;pointer-events:none}
+.urgent-toggle .box{display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:10px;border:2px dashed var(--line);font-weight:700;color:var(--muted);font-size:16px}
+.urgent-toggle input:checked+.box{background:var(--urgent);border:2px solid var(--urgent);color:#fff}
+.linkinfo{margin:14px 0 0;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:14px;color:var(--muted)}
+.linkinfo b{color:var(--ink)}
+.linkinfo.new{background:var(--accent-weak);color:var(--accent)}
+.fs{margin-top:22px}
+.fs>h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.fs>h3 small{font-weight:500;color:var(--muted);font-size:12px}
+.dkind{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.dk-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dk-head b{font-size:16px}
+.dk-head .count{font-size:13px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{position:relative;display:flex;align-items:center;gap:8px;padding:6px 36px 6px 6px;border:1px solid var(--line);border-radius:10px;background:var(--soft);max-width:260px;cursor:pointer}
+.chip.noedit{padding-right:12px}
+.chip .t{width:44px;height:44px;border-radius:6px;overflow:hidden;background:var(--card);display:flex;align-items:center;justify-content:center;flex:none}
+.chip .t img{width:100%;height:100%;object-fit:cover}
+.chip .nm{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip .x{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;background:none;border-radius:8px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.empty{font-size:13px;color:var(--muted)}
+.url{margin-top:4px}
+.url input{height:42px;font-size:15px}
+.photos{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.ph{position:relative;width:96px;height:96px;border-radius:10px;overflow:hidden;background:var(--soft);border:1px solid var(--line);cursor:pointer}
+.ph img{width:100%;height:100%;object-fit:cover}
+.ph .x{position:absolute;right:4px;top:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center}
+.ph .x .ic{width:16px;height:16px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.hist{width:100%;border-collapse:collapse;font-size:14px}
+.hist th,.hist td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+.hist th{font-size:12px;color:var(--muted)}
+.picker{display:flex;flex-direction:column;gap:8px}
+.picker .chip{max-width:none;padding-right:12px}
+
+/* viewer */
+.viewer-wrap{padding:0;background:#000}
+.viewer-wrap .modal{width:100%;height:100%;max-height:100%;border-radius:0;background:#000;position:relative}
+.viewer{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;position:relative}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.viewer iframe{width:100%;height:100%;border:0;background:#fff}
+.vbar{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:linear-gradient(rgba(0,0,0,.6),transparent);color:#fff;z-index:2}
+.vbar .icon-btn{color:#fff;background:rgba(255,255,255,.12)}
+.vbar .cnt{font-size:14px;font-weight:600}
+.vnav{position:absolute;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;z-index:2}
+.vnav.l{left:12px}.vnav.r{right:12px}
+
+/* search / chat */
+body[data-tab=search] main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 90px)}
+.chat{display:flex;flex-direction:column;gap:14px;max-width:900px;margin:0 auto}
+.msg{max-width:100%}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;padding:10px 16px;border-radius:18px 18px 4px 18px;font-size:17px;font-weight:600;max-width:80%}
+.msg.bot{align-self:flex-start;width:100%}
+.msg.bot .say{display:inline-block;background:var(--card);border:1px solid var(--line);padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:15px;margin-bottom:8px}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.sugg button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600}
+.rcard{display:grid;grid-template-columns:96px 1fr;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;box-shadow:var(--shadow)}
+.rcard .thumb{width:96px;height:96px}
+.rmeta{font-size:13px;color:var(--muted);margin-top:4px}
+.rmeta .act{color:var(--urgent);font-weight:700}
+.rbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chatbar{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom));z-index:25;display:flex;gap:8px;align-items:center;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:var(--bg);border-top:1px solid var(--line)}
+.chatbar .inner{display:flex;gap:8px;width:100%;max-width:900px;margin:0 auto}
+.chatbar input{flex:1;height:52px;border-radius:26px;border:1px solid var(--line);background:var(--card);padding:0 20px;font-size:17px;min-width:0}
+.round{width:52px;height:52px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;flex:none}
+.round .ic{width:24px;height:24px}
+.mic{background:var(--card);border:1px solid var(--line)!important;color:var(--accent)}
+.mic.rec{background:var(--urgent);color:#fff;border-color:var(--urgent)!important;animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,45,32,.5)}70%{box-shadow:0 0 0 14px rgba(217,45,32,0)}100%{box-shadow:0 0 0 0 rgba(217,45,32,0)}}
+.send{background:var(--accent);color:#fff}
+
+/* settings */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.panel h3{margin:0 0 6px;font-size:16px}
+.panel p{margin:4px 0 12px;color:var(--muted);font-size:14px}
+.kv{display:flex;flex-wrap:wrap;gap:8px 28px;margin:8px 0 4px}
+.kv div{font-size:13px;color:var(--muted)}
+.kv b{display:block;font-size:20px;color:var(--ink)}
+.warnbox{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;margin-bottom:12px}
+.steps{margin:6px 0 0;padding-left:20px;font-size:14px;color:var(--ink)}
+.steps li{margin:4px 0}
+
+/* 写真から自動入力 */
+.ocr-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;margin-bottom:18px;border-radius:12px;background:var(--accent-weak)}
+.ocr-cta span{font-size:13px;color:var(--accent);font-weight:600}
+.ocr-stage{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:center;margin:14px 0}
+.ocr-stage img{width:140px;height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--soft)}
+.ocr-status .st{font-size:14px;font-weight:600;color:var(--muted)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-bottom:8px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.ocr-text textarea{font-size:15px;min-height:140px}
+.tip{margin:10px 0 4px;font-size:14px}
+.tip summary{cursor:pointer;color:var(--accent);font-weight:600;padding:6px 0}
+h3.sub{margin:22px 0 10px;font-size:15px}
+.f.got input,.f.got .proc-btn{background:var(--ok-bg);border-color:transparent}
+.proc-btn{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;min-height:48px;padding:6px 12px;border:1px solid var(--line);background:var(--card);border-radius:10px;text-align:left;font-size:17px}
+.proc-btn .ph-t{color:var(--muted);font-size:16px}
+.proc-btn .ic{margin-left:auto;color:var(--muted)}
+.ptag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:var(--accent-weak);color:var(--accent);font-size:14px;font-weight:700;white-space:nowrap}
+.prod .ptag{font-size:13px;margin-right:6px;vertical-align:3px}
+.proc-list{display:flex;flex-direction:column;gap:10px}
+.proc-opt{display:flex;align-items:center;gap:14px;min-height:60px;padding:0 18px;border:2px solid var(--line);border-radius:12px;font-size:19px;font-weight:700;cursor:pointer}
+.proc-opt input{width:28px;height:28px;accent-color:var(--accent);flex:none}
+.proc-opt:has(input:checked){border-color:var(--accent);background:var(--accent-weak);color:var(--accent)}
+.f.guess input{background:var(--warn-bg);outline:2px solid var(--warn);outline-offset:-2px}
+.f>span em{font-weight:600}
+.matchinfo{margin:10px 0 4px;font-size:14px}
+.matchinfo .ok{color:var(--ok);font-weight:700}
+.matchinfo .nw{color:var(--accent);font-weight:600}
+.ocr-opts{display:flex;flex-direction:column;gap:0;margin-top:6px}
+.ocr-opts .chk input{accent-color:var(--accent)}
+
+/* ===== PC表示 ===== */
+html[data-layout=pc] .only-tab{display:none!important}
+html:not([data-layout=pc]) .only-pc{display:none!important}
+html[data-layout=pc]{--side:200px;--tabh:0px}
+html[data-layout=pc] .tabbar{top:0;right:auto;width:var(--side);height:auto;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:4px;padding:16px 12px;border-top:0;border-right:1px solid var(--line)}
+html[data-layout=pc] .tabbar button{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;height:44px;padding:0 14px;font-size:15px;border-radius:10px}
+html[data-layout=pc] .tabbar button .ic{width:20px;height:20px}
+html[data-layout=pc] .tabbar button:hover:not(.on){background:var(--soft);color:var(--ink)}
+html[data-layout=pc] .topbar{margin-left:var(--side);padding-left:28px;padding-right:28px}
+html[data-layout=pc] main{margin-left:var(--side);max-width:none;padding-left:28px;padding-right:28px}
+html[data-layout=pc] .chatbar{left:var(--side)}
+html[data-layout=pc] .btn:not(.primary):not([disabled]):hover{background:var(--soft)}
+html[data-layout=pc] .btn.primary:hover{filter:brightness(1.08)}
+html[data-layout=pc] .pcard:hover,html[data-layout=pc] .rcard:hover{border-color:var(--accent)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;padding:2px 8px 18px}
+.brand img{width:32px;height:32px;border-radius:8px}
+.kbd-hint{margin-top:auto;font-size:12px;color:var(--muted);line-height:2;padding:8px}
+kbd{font-family:inherit;font-size:11px;font-weight:700;padding:1px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--card);color:var(--ink)}
+.drop-on{outline:3px dashed var(--accent)!important;outline-offset:2px;background:var(--accent-weak)!important}
+.dropzone{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);font-size:14px;font-weight:600;margin-top:12px}
+body.dropping main::after{content:'注文書の画像をここにドロップすると、読み取って注文を登録します';position:fixed;top:90px;bottom:24px;right:28px;left:calc(var(--side,0px) + 28px);display:flex;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:16px;background:var(--accent-weak);opacity:.95;color:var(--accent);font-size:20px;font-weight:700;z-index:40;pointer-events:none}
+.viewer{overflow:hidden}
+.viewer img{user-select:none;-webkit-user-drag:none}
+.vhint{font-size:12px;opacity:.75}
+/* 注文の表 */
+.otable{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.ohead,.orow{display:grid;grid-template-columns:var(--ocols);gap:0 12px;align-items:center;padding:0 14px 0 12px}
+html{--ocols:88px minmax(150px,1.6fr) minmax(110px,1fr) minmax(130px,1fr) 52px 108px 232px 84px}
+@media (max-width:1299px){html{--ocols:88px minmax(120px,1.4fr) minmax(96px,1fr) minmax(120px,1fr) 48px 232px 80px}.ohead .dates,.orow .dates{display:none}}
+@media (max-width:1099px){#orderList{overflow-x:auto}.otable{min-width:860px}}
+.ohead{position:sticky;top:var(--toph,69px);z-index:5;height:40px;font-size:12px;font-weight:700;color:var(--muted);background:var(--soft);border-bottom:1px solid var(--line);border-radius:12px 12px 0 0}
+.orow{min-height:62px;padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line);border-left:4px solid transparent;cursor:pointer}
+.orow:last-child{border-bottom:0;border-radius:0 0 12px 12px}
+.orow:hover{background:var(--soft)}
+.orow.urgent{background:var(--urgent-bg);border-left-color:var(--urgent)}
+.orow.urgent:hover{filter:brightness(.98)}
+.orow.done{opacity:.55}
+.orow .c{min-width:0}
+.orow .cust-c{font-weight:700;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.orow .model{margin-left:0}
+.orow .num,.ohead .num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.orow .dates{font-size:13px;line-height:1.4}
+.mut{color:var(--muted)}
+.orow .acts{display:flex;gap:6px}
+.orow .acts .btn{padding:0 10px}
+.orow .acts .btn:nth-child(2){flex:1}
+.onote{grid-column:2/-1;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:2px}
+.dm{line-height:1.15}
+.dm b{display:block;font-size:20px;font-weight:800;letter-spacing:-.02em}
+.dm b span{font-size:12px;font-weight:600;color:var(--muted);margin-left:2px}
+.dm i{display:inline-block;margin-top:3px;font-style:normal;font-size:11px;font-weight:700;color:var(--muted);padding:1px 7px;border-radius:999px;background:var(--soft)}
+.dm.soon i{background:var(--warn-bg);color:var(--warn)}
+.dm.today i{background:var(--urgent);color:#fff}
+.dm.over i{background:#7a271a;color:#fff}
+.otable .group-h{margin:0;padding:12px 14px 6px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.otable .ohead+.group-h{border-radius:0}
+
+#toast{position:fixed;left:50%;bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 90px);transform:translate(-50%,20px);background:#1d2433;color:#fff;padding:12px 20px;border-radius:12px;font-size:15px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:100;max-width:90%;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body data-tab="orders">
+<header class="topbar"><h1 id="title">注文</h1><div id="topActions"></div></header>
+<main id="view"></main>
+<nav class="tabbar" id="tabbar"></nav>
+<div id="modalRoot"></div>
+<div id="toast" role="status"></div>
+<datalist id="dlCust"></datalist><datalist id="dlName"></datalist><datalist id="dlModel"></datalist>
+
+<script>
+'use strict';
+/* ========== 基本ユーティリティ ========== */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>(window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const pad=n=>String(n).padStart(2,'0');
+const toStr=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today=()=>toStr(new Date());
+const parseD=s=>{if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const WD='日月火水木金土';
+const fmtMD=s=>{const d=parseD(s);return d?`${d.getMonth()+1}/${d.getDate()}`:'—'};
+const fmtFull=s=>{const d=parseD(s);return d?`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`:'—'};
+const wd=s=>{const d=parseD(s);return d?WD[d.getDay()]:''};
+const daysLeft=s=>{const d=parseD(s);if(!d)return null;return Math.round((d-parseD(today()))/86400000)};
+const KIND={iron:'鉄心',lining:'ライニング'};
+
+const ICONS={
+ list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>',
+ box:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+ search:'<circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4.2-4.2"/>',
+ gear:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+ image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+ doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/>',
+ link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ mic:'<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>',
+ send:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
+ trash:'<path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+ flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>',
+ left:'<path d="m15 18-6-6 6-6"/>',right:'<path d="m9 18 6-6-6-6"/>',
+ down:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+ up:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+ chev:'<path d="m6 9 6 6 6-6"/>',
+ ext:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>',
+};
+const I=(n,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400)}
+
+/* ========== 検索用の文字正規化 ========== */
+const kata2hira=s=>s.replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+function norm(s){return kata2hira(String(s??'').normalize('NFKC').toLowerCase()).replace(/[\s\-‐‑–—―_.,、。・\/\\()（）「」]/g,'')}
+// 音声で「エービー」などと読まれた英字を置き換える（長い読みから順に）
+const ALPHA=[['はいふん',''],['まいなす',''],['だぶりゅー','w'],['だぶる','w'],['えっくす','x'],['えいち','h'],['えっち','h'],['じぇー','j'],['じぇい','j'],['きゅー','q'],['あーる','r'],['ぜっと','z'],['ぜっど','z'],['てぃー','t'],['でぃー','d'],['えー','a'],['えい','a'],['びー','b'],['しー','c'],['いー','e'],['えふ','f'],['じー','g'],['あい','i'],['けー','k'],['けい','k'],['える','l'],['えむ','m'],['えぬ','n'],['おー','o'],['ぴー','p'],['えす','s'],['ゆー','u'],['ぶい','v'],['ゔぃ','v'],['わい','y']];
+const spokenAlpha=q=>{let s=q;for(const[k,v]of ALPHA)s=s.split(k).join(v);return s};
+const cleanQuery=q=>{let s=String(q).trim(),prev;do{prev=s;s=s.replace(/[。．.!！?？]+$/,'').replace(/(を|の)?(探して|さがして|検索して|検索|けんさく|調べて|しらべて|見せて|みせて|出して|だして|表示して|表示|図面|ずめん|写真|しゃしん)(ください|下さい)?$/,'').trim()}while(s!==prev&&s);return s||String(q).trim()};
+const bigrams=s=>{const a=[];for(let i=0;i<s.length-1;i++)a.push(s.slice(i,i+2));return a};
+function dice(a,b){if(!a||!b)return 0;if(a.length<2||b.length<2)return a===b?1:0;const A=bigrams(a),B=bigrams(b),m=new Map;A.forEach(x=>m.set(x,(m.get(x)||0)+1));let c=0;B.forEach(x=>{const n=m.get(x);if(n){c++;m.set(x,n-1)}});return 2*c/(A.length+B.length)}
+
+/* ========== データベース（iPad内に保存） ========== */
+const DB={db:null,
+ open(){return new Promise((res,rej)=>{const r=indexedDB.open('kanri',1);r.onupgradeneeded=()=>{const d=r.result;['orders','products','files'].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})})};r.onsuccess=()=>{DB.db=r.result;res()};r.onerror=()=>rej(r.error)})},
+ run(store,mode,fn){return new Promise((res,rej)=>{const t=DB.db.transaction(store,mode),r=fn(t.objectStore(store));t.oncomplete=()=>res(r?r.result:undefined);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})},
+ all:s=>DB.run(s,'readonly',st=>st.getAll()),
+ get:(s,id)=>DB.run(s,'readonly',st=>st.get(id)),
+ put:(s,v)=>DB.run(s,'readwrite',st=>st.put(v)),
+ del:(s,id)=>DB.run(s,'readwrite',st=>st.delete(id)),
+ clear:s=>DB.run(s,'readwrite',st=>st.clear()),
+ keys:s=>DB.run(s,'readonly',st=>st.getAllKeys()),
+};
+const urlCache=new Map();
+async function storeFile(blob,name){const id=uid();await DB.put('files',{id,blob,name:name||'',type:blob.type||'',size:blob.size,createdAt:Date.now()});return{id,name:name||'',type:blob.type||''}}
+async function fileURL(id){if(urlCache.has(id))return urlCache.get(id);const r=await DB.get('files',id);if(!r)return null;const u=URL.createObjectURL(r.blob);urlCache.set(id,u);return u}
+function hydrate(root=document){$$('img[data-fid]',root).forEach(img=>{if(img.getAttribute('src'))return;fileURL(img.dataset.fid).then(u=>{if(u)img.src=u})})}
+const isImg=t=>/^image\//.test(t||'');
+
+async function compress(file,max=1600,q=.82){
+ if(!isImg(file.type)||file.type==='image/gif'||file.type==='image/svg+xml')return file;
+ try{
+  const u=URL.createObjectURL(file);
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=u});
+  let w=img.naturalWidth,h=img.naturalHeight;const s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(img,0,0,w,h);URL.revokeObjectURL(u);
+  const b=await new Promise(r=>c.toBlob(r,'image/jpeg',q));return b||file;
+ }catch(e){return file}
+}
+function pickFiles({accept='image/*',capture=false,multiple=true}={}){
+ return new Promise(res=>{const i=document.createElement('input');i.type='file';i.accept=accept;if(capture)i.setAttribute('capture','environment');i.multiple=multiple;i.style.display='none';document.body.appendChild(i);
+  i.addEventListener('change',()=>{res([...i.files]);i.remove()});i.addEventListener('cancel',()=>{res([]);i.remove()});i.click()});
+}
+async function photosFromFiles(fs){const ids=[];for(const f of fs){if(!isImg(f.type))continue;const b=await compress(f,1600,.82);ids.push((await storeFile(b,f.name||'写真.jpg')).id)}return ids}
+async function addPhotos(capture){return photosFromFiles(await pickFiles({accept:'image/*',capture,multiple:!capture}))}
+async function addDrawingFiles(kind,capture){return drawingsFromFiles(kind,await pickFiles({accept:capture?'image/*':'image/*,application/pdf',capture,multiple:!capture}))}
+async function drawingsFromFiles(kind,fs){
+ const out=[];
+ for(const f of fs){if(!isImg(f.type)&&f.type!=='application/pdf')continue;const b=isImg(f.type)?await compress(f,3000,.9):f;const s=await storeFile(b,f.name||(KIND[kind]+'図面'));out.push({id:uid(),kind,fileId:s.id,name:f.name||(KIND[kind]+'図面.jpg'),type:b.type||f.type})}
+ return out;
+}
+
+/* ---- ドラッグ＆ドロップ（PC） ---- */
+const hasFiles=e=>!!(e.dataTransfer&&[...e.dataTransfer.types].includes('Files'));
+function enableDrop(root,sel,fn){
+ root.addEventListener('dragover',e=>{if(!hasFiles(e))return;const z=e.target.closest(sel);if(!z||!root.contains(z))return;e.preventDefault();e.dataTransfer.dropEffect='copy';$$('.drop-on',root).forEach(x=>x!==z&&x.classList.remove('drop-on'));z.classList.add('drop-on')});
+ root.addEventListener('dragleave',e=>{const z=e.target.closest(sel);if(z&&!z.contains(e.relatedTarget))z.classList.remove('drop-on')});
+ root.addEventListener('drop',e=>{if(!hasFiles(e))return;const z=e.target.closest(sel);if(!z||!root.contains(z))return;e.preventDefault();e.stopPropagation();z.classList.remove('drop-on');const fs=[...e.dataTransfer.files];if(fs.length)fn(z,fs)});
+}
+
+/* ========== 状態 ========== */
+const state={tab:'orders',orders:[],products:[],orderFilter:'open',orderText:'',urgentTop:false,prodText:'',chat:[]};
+try{const p=JSON.parse(localStorage.getItem('kanri-ui')||'{}');if(p.urgentTop)state.urgentTop=true;if(p.orderFilter)state.orderFilter=p.orderFilter}catch(e){}
+const savePrefs=()=>{try{localStorage.setItem('kanri-ui',JSON.stringify({urgentTop:state.urgentTop,orderFilter:state.orderFilter}))}catch(e){}};
+const prodById=id=>id?state.products.find(p=>p.id===id):null;
+function findProductBy(name,model){
+ const nm=norm(model);if(nm)return state.products.find(p=>norm(p.model)===nm)||null;
+ const nn=norm(name);if(nn)return state.products.find(p=>!norm(p.model)&&norm(p.name)===nn)||state.products.find(p=>norm(p.name)===nn)||null;
+ return null;
+}
+function prevOrderOf(prodId,excludeId,before,created=Infinity){let best='';for(const o of state.orders){if(o.id===excludeId||o.productId!==prodId||!o.orderDate)continue;if(before&&(o.orderDate>before||(o.orderDate===before&&(o.createdAt||0)>=created)))continue;if(o.orderDate>best)best=o.orderDate}return best}
+const ordersOf=pid=>state.orders.filter(o=>o.productId===pid).sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||''));
+const upsert=(arr,obj)=>{const i=arr.findIndex(x=>x.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj)};
+function refreshDatalists(){
+ const u=a=>[...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,'ja'));
+ $('#dlCust').innerHTML=u(state.orders.map(o=>o.customer)).map(v=>`<option value="${esc(v)}">`).join('');
+ $('#dlName').innerHTML=u(state.products.map(p=>p.name)).map(v=>`<option value="${esc(v)}">`).join('');
+ $('#dlModel').innerHTML=u(state.products.map(p=>p.model)).map(v=>`<option value="${esc(v)}">`).join('');
+}
+async function gcFiles(){
+ if($('#modalRoot [data-sticky]'))return;
+ try{const ref=new Set();state.orders.forEach(o=>(o.photos||[]).forEach(i=>ref.add(i)));state.products.forEach(p=>{(p.photos||[]).forEach(i=>ref.add(i));(p.drawings||[]).forEach(d=>ref.add(d.fileId))});
+  for(const k of await DB.keys('files'))if(!ref.has(k)){await DB.del('files',k);const u=urlCache.get(k);if(u){URL.revokeObjectURL(u);urlCache.delete(k)}}}catch(e){console.warn(e)}
+}
+
+/* ========== モーダル ========== */
+function openModal(html,{wide=false,sticky=false,cls=''}={}){
+ const w=document.createElement('div');w.className='modal-wrap '+cls;if(sticky)w.dataset.sticky='1';
+ w.innerHTML=`<div class="modal ${wide?'wide':''}" role="dialog" aria-modal="true">${html}</div>`;
+ $('#modalRoot').appendChild(w);document.body.classList.add('noscroll');
+ w.addEventListener('click',e=>{if(e.target===w&&!sticky)closeModal(w);if(e.target.closest('[data-close]'))closeModal(w)});
+ return w;
+}
+function closeModal(w){if(!w||!w.parentNode)return;w.remove();if(!$('#modalRoot').children.length)document.body.classList.remove('noscroll')}
+
+/* ========== ファイル表示 ========== */
+async function openViewer(fileIds,start=0){
+ const recs=[];for(const id of fileIds){const r=await DB.get('files',id);if(r)recs.push(r)}
+ if(!recs.length){toast('ファイルが見つかりません');return}
+ let i=Math.min(start,recs.length-1);
+ const w=openModal(`<div class="vbar"><button class="icon-btn" data-close>${I('x')}</button><span class="cnt"></span><span class="sp"></span><span class="vhint only-pc">ホイールで拡大 ・ ドラッグで移動 ・ ダブルクリックで切替 ・ ←→で前後</span><button class="icon-btn" data-ext title="別画面で開く">${I('ext')}</button></div><div class="viewer"></div>${recs.length>1?`<button class="vnav l">${I('left')}</button><button class="vnav r">${I('right')}</button>`:''}`,{cls:'viewer-wrap'});
+ const show=async()=>{const r=recs[i],u=await fileURL(r.id);$('.cnt',w).textContent=(r.name||'')+(recs.length>1?`（${i+1}/${recs.length}）`:'');
+  $('.viewer',w).innerHTML=isImg(r.type)?`<img src="${u}" alt="">`:`<iframe src="${u}" title="図面"></iframe>`;const im=$('.viewer img',w);if(im)zoomable(im)};
+ const go=d=>{i=(i+d+recs.length)%recs.length;show()};
+ w.addEventListener('click',e=>{if(e.target.closest('.vnav.l'))go(-1);else if(e.target.closest('.vnav.r'))go(1);else if(e.target.closest('[data-ext]'))fileURL(recs[i].id).then(u=>window.open(u,'_blank'))});
+ let sx=null;w.addEventListener('touchstart',e=>{sx=e.touches[0].clientX},{passive:true});
+ w.addEventListener('touchend',e=>{if(sx===null||recs.length<2)return;const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>60)go(dx<0?1:-1);sx=null});
+ show();
+}
+function zoomable(img){
+ let s=1,x=0,y=0,drag=null;img.style.transformOrigin='0 0';img.draggable=false;
+ const ap=()=>{img.style.transform=`translate(${x}px,${y}px) scale(${s})`;img.style.cursor=s>1?(drag?'grabbing':'grab'):'zoom-in'};
+ const zoomAt=(cx,cy,s2)=>{s2=Math.max(1,Math.min(8,s2));const r=img.getBoundingClientRect(),lx=(cx-r.left)/s,ly=(cy-r.top)/s;x+=lx*(s-s2);y+=ly*(s-s2);s=s2;if(s===1)x=y=0;ap()};
+ img.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,s*Math.exp(-e.deltaY*0.0015))},{passive:false});
+ img.addEventListener('dblclick',e=>zoomAt(e.clientX,e.clientY,s>1?1:2.5));
+ img.addEventListener('mousedown',e=>{if(s<=1||e.button!==0)return;e.preventDefault();drag={sx:e.clientX-x,sy:e.clientY-y};ap()});
+ const mv=e=>{if(!img.isConnected){removeEventListener('mousemove',mv);removeEventListener('mouseup',up);return}if(!drag)return;x=e.clientX-drag.sx;y=e.clientY-drag.sy;ap()};
+ const up=()=>{if(drag){drag=null;ap()}};
+ addEventListener('mousemove',mv);addEventListener('mouseup',up);ap();
+}
+function openDrawings(pid,kind){
+ const p=prodById(pid);if(!p){toast('製品が登録されていません');return}
+ const ds=(p.drawings||[]).filter(d=>d.kind===kind);const url=(p[kind+'Url']||'').trim();
+ if(!ds.length&&!url){toast(`${KIND[kind]}の図面は未登録です`);return}
+ if(ds.length&&!url){openViewer(ds.map(d=>d.fileId),0);return}
+ if(!ds.length&&url){window.open(url,'_blank');return}
+ const w=openModal(`<div class="mhead"><h2>${KIND[kind]}図面</h2><span class="sp"></span><button class="icon-btn" data-close>${I('x')}</button></div><div class="mbody"><div class="picker">${ds.map((d,i)=>`<div class="chip noedit" data-i="${i}"><span class="t">${isImg(d.type)?`<img data-fid="${d.fileId}" alt="">`:I('doc')}</span><span class="nm">${esc(d.name)}</span></div>`).join('')}<div class="chip noedit" data-url><span class="t">${I('link')}</span><span class="nm">${esc(url)}</span></div></div></div>`);
+ hydrate(w);
+ w.addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;if(c.dataset.url!==undefined){window.open(url,'_blank');return}closeModal(w);openViewer(ds.map(d=>d.fileId),+c.dataset.i)});
+}
+
+/* ========== 共通部品（図面・写真の編集欄） ========== */
+function drawingAreaHTML(D){
+ return ['iron','lining'].map(k=>{const list=D.drawings.filter(x=>x.kind===k);
+  return `<div class="dkind" data-kind="${k}"><div class="dk-head"><b>${KIND[k]}</b><span class="count">${list.length}件</span><span class="sp"></span>
+   <button type="button" class="btn sm only-tab" data-act="d-cam" data-kind="${k}">${I('camera')}撮影</button><span class="hint only-pc" style="margin:0">ここに図面をドラッグ</span>
+   <button type="button" class="btn sm" data-act="d-add" data-kind="${k}">${I('plus')}ファイル</button></div>
+   <div class="chips">${list.map(d=>`<div class="chip" data-act="d-open" data-id="${d.id}"><span class="t">${isImg(d.type)?`<img data-fid="${d.fileId}" alt="">`:I('doc')}</span><span class="nm">${esc(d.name)}</span><button type="button" class="x" data-act="d-del" data-id="${d.id}" aria-label="削除">${I('x')}</button></div>`).join('')||'<span class="empty">図面は未登録です</span>'}</div>
+   <label class="f url"><span>リンク（任意・社内サーバーのURLなど）</span><input name="${k}Url" type="url" inputmode="url" placeholder="https://" value="${esc(D[k+'Url']||'')}"></label></div>`}).join('');
+}
+const photoThumbs=ids=>ids.map((id,i)=>`<div class="ph" data-act="p-open" data-i="${i}"><img data-fid="${id}" alt=""><button type="button" class="x" data-act="p-del" data-i="${i}" aria-label="削除">${I('x')}</button></div>`).join('');
+// 図面欄のクリックを処理（注文・製品フォーム共通）
+async function handleDrawingAct(act,el,D,refresh){
+ if(act==='d-add'||act==='d-cam'){const add=await addDrawingFiles(el.dataset.kind,act==='d-cam');if(add.length){D.drawings.push(...add);refresh();toast(`${KIND[el.dataset.kind]}図面を追加しました`)}return true}
+ if(act==='d-del'){const d=D.drawings.find(x=>x.id===el.dataset.id);if(d&&confirm(`「${d.name}」を外しますか？`)){D.drawings=D.drawings.filter(x=>x!==d);refresh()}return true}
+ if(act==='d-open'){const d=D.drawings.find(x=>x.id===el.dataset.id);const same=D.drawings.filter(x=>x.kind===d.kind);openViewer(same.map(x=>x.fileId),same.indexOf(d));return true}
+ return false;
+}
+
+/* ========== 写真から文字を読み取る（iPad内で処理・ネット不要） ========== */
+const OCR_FILES=['ocr2/ort.wasm.min.js','ocr2/ppocr.js','ocr2/ort-wasm-simd-threaded.mjs','ocr2/ort-wasm-simd-threaded.wasm','ocr2/det.ort','ocr2/rec.onnx','ocr2/dict.txt'];
+const loadScript=src=>new Promise((res,rej)=>{if(document.querySelector(`script[data-src="${src}"]`))return res();const s=document.createElement('script');s.src=src;s.dataset.src=src;s.onload=res;s.onerror=()=>rej(new Error('読み取り機能を読み込めませんでした（初回はネット接続が必要です）'));document.head.appendChild(s)});
+async function runOcr(blob,onProg){
+ await loadScript('ocr2/ort.wasm.min.js');await loadScript('ocr2/ppocr.js');
+ const text=await window.PPOCR.read(blob,(t,p)=>onProg&&onProg(t,p));
+ return cleanOcr(text);
+}
+async function ocrReady(){if(!('caches' in window))return null;try{for(const f of OCR_FILES)if(!(await caches.match(new URL(f,location.href).href)))return false;return true}catch(e){return null}}
+
+/* ---- 読み取った文字から注文内容を取り出す ---- */
+const JCH='[\\u3040-\\u30ff\\u3400-\\u9fff\\uf900-\\ufaff々〆ー]';
+// 読み取りエンジンが中国の簡体字で返しやすい字を日本の字体に直す
+const SIMP2JA={'单':'単','铁':'鉄','计':'計','岛':'島','业':'業','发':'発','东':'東','张':'張','价':'価','额':'額','产':'産','场':'場','机':'機','电':'電','设':'設','线':'線','图':'図','书':'書','纸':'紙','购':'購','货':'貨','务':'務','员':'員','质':'質','检':'検','验':'験','长':'長','门':'門','关':'関','开':'開','应':'応','达':'達','运':'運','输':'輸','时':'時','间':'間','县':'県','卖':'売','买':'買','处':'処','号':'号','们':'們','个':'個','数':'数','转':'転','车':'車','轮':'輪','钢':'鋼','铸':'鋳','锻':'鍛','钉':'釘','螺':'螺','栓':'栓','规':'規','样':'様','纳':'納','页':'頁','实':'実','际':'際','销':'銷','营':'営','业':'業','乐':'楽','学':'学','会':'会','社':'社','区':'区','寿':'寿','滨':'浜','泽':'沢','边':'辺','广':'広','丰':'豊','荣':'栄','龙':'竜','齐':'斉','径':'径','号':'号','备':'備','注':'注','种':'種','类':'類','总':'総','这':'這','让':'譲','压':'圧','变':'変','涂':'塗','层':'層','厚':'厚','宽':'寛','钻':'鑽','铝':'アルミ','铜':'銅','锈':'錆','网':'網','动':'動','头':'頭','尔':'爾','万':'万','与':'与','为':'為','义':'義','几':'幾','对':'対','带':'帯','币':'幣','别':'別','剂':'剤','劳':'労','华':'華','协':'協','单':'単','卫':'衛','历':'歴','县':'県','后':'後','向':'向','听':'聴','园':'園','围':'囲','圆':'円','坏':'壊','块':'塊','坚':'堅','报':'報','填':'填','将':'将','尽':'尽','层':'層','岁':'歳','巩':'鞏','帐':'帳','庆':'慶','库':'庫','录':'録','彻':'徹','忆':'憶','态':'態','总':'総','战':'戦','扩':'拡','扫':'掃','护':'護','择':'択','换':'換','损':'損','摄':'摂','击':'撃','断':'断','无':'無','显':'顕','样':'様','树':'樹','桥':'橋','楼':'楼','残':'残','毕':'畢','气':'気','汇':'彙','况':'況','热':'熱','灯':'灯','点':'点','牵':'牽','状':'状','独':'独','环':'環','现':'現','疗':'療','监':'監','码':'碼','确':'確','离':'離','积':'積','称':'称','税':'税','稳':'穏','笔':'筆','简':'簡','级':'級','约':'約','纪':'紀','练':'練','组':'組','细':'細','终':'終','经':'経','结':'結','给':'給','统':'統','继':'継','续':'続','维':'維','综':'綜','缘':'縁','缩':'縮','罗':'羅','职':'職','联':'聯','肃':'粛','胜':'勝','节':'節','苏':'蘇','药':'薬','获':'獲','虑':'慮','补':'補','装':'装','见':'見','观':'観','规':'規','视':'視','览':'覧','订':'訂','认':'認','讨':'討','让':'譲','记':'記','讲':'講','许':'許','论':'論','证':'証','评':'評','识':'識','词':'詞','译':'訳','试':'試','话':'話','询':'詢','请':'請','读':'読','调':'調','谈':'談','负':'負','财':'財','责':'責','费':'費','资':'資','赏':'賞','车':'車','软':'軟','载':'載','辆':'両','边':'辺','过':'過','还':'還','进':'進','远':'遠','连':'連','选':'選','递':'逓','适':'適','邮':'郵','采':'採','释':'釈','钱':'銭','针':'針','错':'錯','镜':'鏡','闭':'閉','问':'問','闻':'聞','阀':'閥','队':'隊','阶':'階','阳':'陽','际':'際','陆':'陸','险':'険','随':'随','隐':'隠','难':'難','顺':'順','须':'須','顾':'顧','预':'預','领':'領','频':'頻','题':'題','额':'額','风':'風','飞':'飛','馆':'館','驱':'駆','验':'験','鱼':'魚','黄':'黄'};
+const fixChars=t=>t.replace(/[一-鿿]/g,c=>SIMP2JA[c]||c).replace(/エ業/g,'工業').replace(/エ場/g,'工場');
+function cleanOcr(t){
+ t=fixChars(String(t||'').normalize('NFKC')).replace(/\r/g,'').replace(/[ \t]+/g,' ');
+ t=t.replace(new RegExp(`(${JCH}) (?=${JCH})`,'g'),'$1');
+ return t.split('\n').map(s=>s.trim()).filter(Boolean).join('\n');
+}
+function mkDate(y,m,d){if(!(m>=1&&m<=12&&d>=1&&d<=31))return null;const dt=new Date(y,m-1,d);return dt.getMonth()===m-1?toStr(dt):null}
+function guessYear(m,d){const t=new Date();let y=t.getFullYear();if(new Date(y,m-1,d)<new Date(y,t.getMonth(),t.getDate()-120))y++;return y}
+function findDates(s){
+ const R=[ // [正規表現, 前置グループ数, 変換]
+  [/(\d{4})\s*[\/\-.年]\s*(\d{1,2})\s*[\/\-.月]\s*(\d{1,2})/g,0,m=>mkDate(+m[1],+m[2],+m[3])],
+  [/(?:令和|R)\s*(\d{1,2}|元)\s*[年.\/\-]\s*(\d{1,2})\s*[月.\/\-]\s*(\d{1,2})/g,0,m=>mkDate(2018+(m[1]==='元'?1:+m[1]),+m[2],+m[3])],
+  [/(^|[^\d\/.])(\d{2})[\/.](\d{1,2})[\/.](\d{1,2})(?![\d\/.])/g,1,m=>mkDate(2000+ +m[2],+m[3],+m[4])],
+  [/(^|[^\d年\/.])(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,1,m=>mkDate(guessYear(+m[2],+m[3]),+m[2],+m[3])],
+  [/(^|[^\d\/.:])(\d{1,2})\/(\d{1,2})(?![\d\/])/g,1,m=>mkDate(guessYear(+m[2],+m[3]),+m[2],+m[3])],
+ ];
+ const out=[],used=[];
+ for(const[re,pre,fn]of R){re.lastIndex=0;let m;while((m=re.exec(s))){const st=m.index+(pre?m[1].length:0),en=m.index+m[0].length;if(used.some(([a,b])=>st<b&&en>a))continue;const v=fn(m);if(v){out.push({i:st,v});used.push([st,en])}}}
+ return out.sort((a,b)=>a.i-b.i);
+}
+const LBL={
+ name:/(品名|製品名|品目名?|商品名|名称)/,
+ model:/(型番|型式|品番|図番|図面番号|部品番号|型名|MODEL|P\/N)/i,
+ qty:/(数量|個数|員数|台数|本数|注文数|QTY)/i,
+ due:/(希望納期|納入希望日|納入予定日|納入期日|納入日|納品日|納期)/,
+ order:/(受注日|注文日|発注日|発行日|作成日|受付日|日付)/,
+ cust:/(客先|発注者|発注元|注文者|注文元|得意先|顧客名|顧客|お客様名|貴社名|御社名|会社名)/,
+};
+const ANY_LBL=new RegExp([LBL.name,LBL.model,LBL.qty,LBL.due,LBL.order,LBL.cust].map(r=>r.source).join('|')+'|単価|金額|備考|摘要|合計|注文番号|受注No|出荷日|納入先|取引先|担当者|承認|TEL|FAX|〒','i');
+const COMP=/(株式会社|有限会社|合同会社|\(株\)|\(有\)|㈱|㈲|工業|製作所|工作所|産業|商事|商会|鉄工|機械|化成|工機|精機|電機|興業|化学|ゴム|営業所|工場)/;
+const UNIT='(?:個|コ|本|台|枚|ヶ|ケ|セット|set|pcs|PCS|式|組|ケース)';
+const MODEL_TOKEN=/[A-Za-z]{1,6}[\-_]?\d{1,7}(?:[\-_][A-Za-z0-9]+)*[A-Za-z]?/g;
+const compact=l=>l.replace(/[\s,，、|｜「」\[\]()（）:：.・]/g,'');
+function labelVal(lines,re){
+ for(let i=0;i<lines.length;i++){const m=lines[i].match(re);if(!m)continue;
+  let v=lines[i].slice(m.index+m[0].length).replace(/^[\s:：・=\-]+/,'');
+  const k=v.search(ANY_LBL);if(k>=0)v=v.slice(0,k);v=v.trim();
+  if(!v&&lines[i+1]&&!ANY_LBL.test(lines[i+1].slice(0,6)))v=lines[i+1].trim();
+  if(v)return v}
+ return '';
+}
+// 日付の欄：同じ行 → 下の2行まで探す。月が読めない「2026年 月9日」は注文日から推定
+function labelDate(lines,re,stop,after){
+ for(let i=0;i<lines.length;i++){const m=lines[i].match(re);if(!m)continue;
+  const cands=[lines[i].slice(m.index+m[0].length),lines[i+1]||'',lines[i+2]||''];
+  for(let j=0;j<cands.length;j++){let c=cands[j];const k=c.search(stop);if(k>=0)c=c.slice(0,k);
+   const ds=findDates(c);if(ds.length)return{v:ds[0].v};
+   const pm=c.match(/(\d{4})\s*年\s*月?\s*(\d{1,2})\s*日/)||c.match(/(?:^|\s)年\s*月?\s*(\d{1,2})\s*日/);
+   if(pm){const day=+(pm[2]||pm[1]);const base=parseD(after||today());for(let a=0;a<3;a++){const d=new Date(base.getFullYear(),base.getMonth()+a,day);if(d.getDate()===day&&toStr(d)>(after||'')){return{v:toStr(d),guessed:true}}}}
+   if(j===0&&c.trim())break; // 同じ行に別の値があれば下の行は見ない
+  }}
+ return null;
+}
+const companyName=s=>{s=s.replace(/(TEL|FAX|電話|〒|住所|担当).*$/i,'').replace(/[:：]/g,' ').trim();const t=s.split(/\s+/);return(t.find(x=>COMP.test(x))||t[0]||'').slice(0,40)};
+const looksCompany=v=>!!v&&(COMP.test(v)||((v.match(new RegExp(JCH,'g'))||[]).length>=3&&!/\d/.test(v)));
+function parseOrderText(raw){
+ const text=cleanOcr(raw),r={};if(!text)return r;
+ const lines=text.split('\n'),nt=norm(text);
+ let own='';try{own=norm(localStorage.getItem('kanri-own')||'')}catch(e){}
+ const isOwn=s=>own&&norm(s).includes(own);
+ const hasJ=t=>new RegExp(JCH).test(t||''),okModel=t=>!!t&&/[A-Za-z0-9]/.test(t)&&/\d/.test(t)&&!hasJ(t);
+ // 製品：登録済みの型番・製品名が文中にあれば最優先
+ let best=null;
+ for(const p of state.products){const k=norm(p.model);if(k.length>=3&&nt.includes(k)&&(!best||k.length>norm(best.model).length))best=p}
+ if(best){r.productId=best.id;r.name=best.name;r.model=best.model}
+ // 表形式：見出し行（品名/型番 と 数量/単価/金額）の次の行に値
+ const table={};
+ for(let i=0;i<lines.length-1;i++){const h=compact(lines[i]);
+  if(!((LBL.name.test(h)||LBL.model.test(h))&&(LBL.qty.test(h)||/単価|金額/.test(h))))continue;
+  const row=lines[i+1];if(ANY_LBL.test(compact(row).slice(0,4)))continue;
+  const toks=row.split(/\s+/).filter(Boolean);
+  const mt=toks.find(t=>/[A-Za-z]/.test(t)&&/\d/.test(t)&&/^[A-Za-z0-9\-_.\/]+$/.test(t));if(mt)table.model=mt;
+  const after=mt?toks.slice(toks.indexOf(mt)+1):toks;
+  const qt=after.find(t=>new RegExp(`^\\d{1,5}${UNIT}?$`).test(t))||after.find(t=>new RegExp(`^\\d[\\d,]{0,6}${UNIT}$`).test(t));if(qt)table.qty=qt.replace(/[^\d]/g,'');
+  const nm=toks.find(t=>hasJ(t)&&!new RegExp(`^\\d*${UNIT}$`).test(t));if(nm)table.name=nm;
+  if(/注文番号/.test(h)){const last=toks[toks.length-1];if(/^\d{4,12}$/.test(last)&&last!==qt)table.orderNo=last}
+  break}
+ if(!r.model){let v=labelVal(lines,LBL.model);v=v&&v.split(/\s+/)[0];r.model=table.model||(okModel(v)?v:'')}
+ if(!r.model){for(const l of lines){if(/(TEL|FAX|〒|No\.?|電話)/i.test(l))continue;const m=l.match(MODEL_TOKEN);if(m){r.model=m[0];break}}}
+ if(!best&&r.model){const p=findProductBy('',r.model);if(p){r.productId=p.id;r.name=p.name;r.model=p.model}}
+ if(!r.name){let v=table.name||'';if(!v){v=labelVal(lines,LBL.name);if(v){if(r.model)v=v.split(r.model).join(' ');v=v.replace(new RegExp(`\\d[\\d,]*\\s*${UNIT}`,'g'),' ').trim();v=v.split(/\s+/).find(hasJ)||''}}r.name=v}
+ // 型番が読めなかった時だけ、登録済みの製品名で探す
+ if(!r.productId&&!r.model){let bn=null;for(const p of state.products){const k=norm(p.name);if(k.length>=3&&nt.includes(k)&&(!bn||k.length>norm(bn.name).length))bn=p}if(bn){r.productId=bn.id;r.name=bn.name;r.model=bn.model}}
+ const ANY_G=new RegExp(ANY_LBL.source,'gi');
+ if(!r.name&&r.model){const l=lines.find(l=>l.includes(r.model));if(l){const t=l.split(/\s+/).map(x=>x.replace(ANY_G,'')).filter(x=>hasJ(x)&&!new RegExp(`^\\d*${UNIT}$`).test(x)).sort((a,b)=>b.length-a.length)[0];if(t)r.name=t}}
+ // 数量
+ let q=table.qty||'';if(!q){q=labelVal(lines,LBL.qty);q=(q.match(/\d[\d,]*/)||[''])[0].replace(/,/g,'')}
+ if(!q){const m=text.match(new RegExp(`(\\d[\\d,]{0,6})\\s*${UNIT}(?![A-Za-z])`));if(m)q=m[1].replace(/,/g,'')}
+ r.qty=q;
+ // 日付
+ const od=labelDate(lines,LBL.order,LBL.due);r.orderDate=od?od.v:'';
+ const dd=labelDate(lines,LBL.due,LBL.order,r.orderDate);r.dueDate=dd?dd.v:'';if(dd&&dd.guessed)r.dueGuessed=true;
+ const all=[...new Set(findDates(text).map(x=>x.v))].sort();const td=today();
+ if(!r.orderDate&&!r.dueDate&&all.length){if(all.length>=2){r.orderDate=all[0];r.dueDate=all[all.length-1]}else if(all[0]>td)r.dueDate=all[0];else r.orderDate=all[0]}
+ else if(r.orderDate&&!r.dueDate)r.dueDate=all.find(v=>v>r.orderDate)||'';
+ else if(!r.orderDate&&r.dueDate)r.orderDate=all.filter(v=>v<r.dueDate&&v<=td).pop()||'';
+ // 顧客名：過去の顧客名 → 「客先」などの見出しの下 → 会社名らしい行（「御中」「様」は自社宛てなので除外）
+ const known=[...new Set(state.orders.map(o=>o.customer).filter(c=>c&&norm(c).length>=2))].sort((a,b)=>b.length-a.length);
+ r.customer=known.find(c=>nt.includes(norm(c))&&!isOwn(c))||'';
+ if(!r.customer){for(let i=0;i<lines.length&&!r.customer;i++){const m=lines[i].match(LBL.cust);if(!m)continue;
+  const same=lines[i].slice(m.index+m[0].length).replace(/^[\s:：]+/,'');const cs=[same.split(ANY_LBL)[0],lines[i+1],lines[i+2],lines[i+3]];
+  for(const c of cs){if(!c)continue;const v=companyName(c);if(looksCompany(v)&&!isOwn(v)&&!/(御中|様|殿)$/.test(c.trim())){r.customer=v;break}}}}
+ if(!r.customer){const l=lines.find(l=>COMP.test(l)&&!/(御中|様|殿|注文書|発注書|注文請書|見積)/.test(l)&&!isOwn(l));if(l)r.customer=companyName(l)}
+ r.urgent=/(大至急|至急|特急|急ぎ|緊急|URGENT|ASAP)/i.test(text);
+ r.process=PROCESSES.filter(k=>PROC_RE[k].test(text));
+ // 備考に入れる参考情報（受注No.・注文番号・使用ライニング・寸法など）
+ const ex=[];
+ const no=text.match(/受注\s*No\.?\s*[:：]?\s*([A-Za-z0-9\-]{4,})/i);if(no)ex.push('受注No.'+no[1]);
+ const on=table.orderNo||((text.match(/注文番号\s*[:：]?\s*([A-Za-z0-9\-]{4,})/)||[])[1]);if(on)ex.push('注文番号 '+on);
+ for(let i=0;i<lines.length;i++){
+  if(/使用ラ[イニンガグ]{1,4}/.test(lines[i])){const same=lines[i].replace(/.*使用ラ[イニンガグ]{1,4}/,'').split(ANY_LBL)[0].trim();const v=(same&&!/寸法/.test(same)?same:(lines[i+1]||'')).split(/\s+/)[0];if(v)ex.push('使用ライニング '+v)}
+  if(/寸法/.test(lines[i])){const sz=/\d+(?:\.\d+)?\s*[*×xX]\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?/g;const ms=((lines[i].split('寸法').pop())+' '+(lines[i+1]||'')).match(sz);if(ms){ex.push('加工寸法 '+ms[ms.length-1].replace(/\s/g,''));}}
+ }
+ r.extra=[...new Set(ex)].join(' / ');
+ return r;
+}
+
+function openOcrDialog(onApply,initialFile){
+ let photo=null,busy=false;const touched=new Set();
+ const FIELDS=[['customer','顧客名','c3'],['process','加工区分','c3'],['pmodel','型番','c3'],['qty','数量','c3'],['orderDate','注文日','c3'],['dueDate','納期','c3']];
+ const w=openModal(`<div class="mhead"><h2>写真から自動入力</h2><span class="sp"></span><button class="icon-btn" data-close aria-label="閉じる">${I('x')}</button></div>
+ <form class="mbody" autocomplete="off" onsubmit="return false">
+  <div class="btnrow"><button type="button" class="btn primary only-tab" data-o="cam">${I('camera')}注文書を撮影</button><button type="button" class="btn only-tab" data-o="lib">${I('image')}写真を選ぶ</button><button type="button" class="btn primary only-pc" data-o="lib">${I('image')}画像を選ぶ</button></div>
+  <div class="dropzone only-pc">注文書の画像（JPEG・PNG）をこの画面にドラッグ ／ <kbd>Ctrl</kbd>+<kbd>V</kbd> で貼り付け</div>
+  <div class="ocr-stage" hidden><img alt=""><div class="ocr-status"><div class="bar"><i></i></div><span class="st">準備中…</span></div></div>
+  <label class="f ocr-text" style="margin-top:14px"><span>読み取った文字 <small>直接直したり、貼り付けたりできます</small></span><textarea name="ocrText" placeholder="ここに注文書の文字が入ります"></textarea></label>
+  <details class="tip only-tab"><summary>もっと正確に読み取るには（iPadの「テキスト認識表示」を使う）</summary>
+   <ol class="steps"><li>「写真」アプリで注文書の写真を開く</li><li>文字を長押し →「すべてを選択」→「コピー」</li><li>上の欄を長押しして「ペースト」</li></ol>
+   <p class="hint">上の欄を長押しして「テキストをスキャン」を選ぶと、カメラを向けるだけで直接読み取ることもできます。</p></details>
+  <h3 class="sub">入力される内容 <small style="font-weight:500;color:var(--muted)">（違っていたら直してください）</small></h3>
+  <div class="grid">${FIELDS.map(([n,l,c])=>n==='process'?`<div class="f ${c}" data-fld="process"><span>${l} <small>複数選択できます</small></span><button type="button" class="proc-btn" data-o="proc">${procBtnHTML([])}</button></div>`:`<label class="f ${c}" data-fld="${n}"><span>${l}</span><input name="${n}" ${/Date/.test(n)?'type="date"':n==='qty'?'type="number" inputmode="numeric"':''}></label>`).join('')}
+   <label class="f c6" data-fld="extra"><span>備考に入れる内容 <small>受注No.・注文番号・ライニング・寸法など</small></span><input name="extra"></label>
+   <label class="f c6 urgent-toggle"><input type="checkbox" name="urgent"><span class="box">${I('flag')}急ぎの品</span></label></div>
+  <div class="matchinfo"></div>
+  <div class="ocr-opts"><label class="chk"><input type="checkbox" name="attach" checked>写真を備考に添付する</label><label class="chk"><input type="checkbox" name="appendText">読み取った文字を備考に追記する</label></div>
+ </form>
+ <div class="mfoot"><span class="sp"></span><button class="btn" data-close>キャンセル</button><button class="btn primary" data-o="apply">${I('check')}この内容で入力</button></div>`,{wide:true,sticky:true});
+ const form=$('form',w),F=n=>form.elements.namedItem(n),ta=F('ocrText');let proc=[];
+ const setProc=list=>{proc=list;$('[data-o=proc]',w).innerHTML=procBtnHTML(list);$('[data-fld=process]',w).classList.toggle('got',!!list.length&&!touched.has('process'))};
+ const update=()=>{
+  const r=parseOrderText(ta.value);if(!touched.has('process'))setProc(r.process||[]);const map={customer:r.customer,pmodel:r.model,qty:r.qty,orderDate:r.orderDate,dueDate:r.dueDate,extra:r.extra};
+  for(const[n,v]of Object.entries(map)){if(touched.has(n))continue;F(n).value=v||'';$(`[data-fld="${n}"]`,w).classList.toggle('got',!!v)}
+  const dl=$('[data-fld="dueDate"] > span',w);if(!touched.has('dueDate'))dl.innerHTML=r.dueGuessed?'納期 <em>月が読めなかったため推定しました。確認してください</em>':'納期';$('[data-fld="dueDate"]',w).classList.toggle('guess',!!r.dueGuessed&&!touched.has('dueDate'));
+  if(!touched.has('urgent'))F('urgent').checked=!!r.urgent;
+  const p=prodById(r.productId);const mi=$('.matchinfo',w);
+  mi.innerHTML=!ta.value.trim()?'':p?`<span class="ok">${I('check')} 登録済みの製品「${esc(p.model||pTitle(p))}」と一致しました。図面も自動で入ります。</span>`:F('pmodel').value?'<span class="nw">登録済みの製品とは一致しませんでした。新しい製品として登録されます。</span>':'';
+ };
+ let tmr;ta.addEventListener('input',()=>{clearTimeout(tmr);tmr=setTimeout(update,250)});
+ form.addEventListener('input',e=>{const n=e.target.name;if(n&&n!=='ocrText'&&n!=='attach'&&n!=='appendText'){touched.add(n);const f=e.target.closest('[data-fld]');if(f)f.classList.remove('got')}});
+ const setSt=(t,p)=>{$('.st',w).textContent=t;if(p!=null)$('.bar i',w).style.width=Math.round(p*100)+'%'};
+ const read=async capture=>{if(busy)return;const[f]=await pickFiles({accept:'image/*',capture,multiple:false});if(f)readFile(f)};
+ const readFile=async f=>{
+  if(busy)return;busy=true;photo=f;const stg=$('.ocr-stage',w);stg.hidden=false;const u=URL.createObjectURL(f);$('img',stg).src=u;setSt('準備中…',0.02);
+  try{
+   const text=await runOcr(f,m=>{
+    if(m.status==='recognizing text')setSt(`文字を読み取り中… ${Math.round(m.progress*100)}%`,0.3+m.progress*0.7);
+    else if(/load|initializ/.test(m.status||''))setSt('読み取りの準備中…（初回は少し時間がかかります）',0.05+0.25*(m.progress||0));
+   });
+   ta.value=text;setSt(text?'読み取りが終わりました。内容を確認してください。':'文字が見つかりませんでした。明るい場所で、注文書が画面いっぱいに写るように撮り直してください。',1);update();
+  }catch(e){console.error(e);setSt('読み取りに失敗しました：'+(e&&e.message||e),0)}
+  finally{busy=false}
+ };
+ enableDrop(w,'.modal',(z,fs)=>{const f=fs.find(f=>isImg(f.type));if(f)readFile(f);else toast('画像ファイル（JPEG・PNG）をドラッグしてください')});
+ const onPaste=e=>{if(!w.isConnected){document.removeEventListener('paste',onPaste);return}if($('#modalRoot').lastElementChild!==w)return;const f=[...((e.clipboardData&&e.clipboardData.files)||[])].find(f=>isImg(f.type));if(f){e.preventDefault();readFile(f)}};
+ document.addEventListener('paste',onPaste);
+ if(initialFile)setTimeout(()=>readFile(initialFile),0);
+ w.addEventListener('click',async e=>{
+  const el=e.target.closest('[data-o]');if(!el)return;const o=el.dataset.o;
+  if(o==='cam'||o==='lib')read(o==='cam');
+  else if(o==='proc')openProcessPicker(proc,list=>{touched.add('process');setProc(list)});
+  else if(o==='apply'){
+   if(busy){toast('読み取りが終わるまでお待ちください');return}
+   const r={customer:F('customer').value.trim(),process:proc,model:F('pmodel').value.trim(),qty:F('qty').value.trim(),orderDate:F('orderDate').value,dueDate:F('dueDate').value,urgent:F('urgent').checked};
+   if(F('attach').checked&&photo){const b=await compress(photo,1600,.82);r.photoId=(await storeFile(b,photo.name||'注文書.jpg')).id}
+   const nt=[F('extra').value.trim(),F('appendText').checked?ta.value.trim():''].filter(Boolean).join('\n');if(nt)r.noteText=nt;
+   delete w.dataset.sticky;closeModal(w);onApply(r);
+  }
+ });
+ return w;
+}
+
+/* ---- 加工区分（複数選択） ---- */
+const PROCESSES=['接着','張替','リベット'];
+const PROC_RE={'接着':/接着/,'張替':/(張替|張り替|貼替|貼り替|張換|張り換)/,'リベット':/リベット/};
+const procTags=list=>(list||[]).map(x=>`<span class="ptag">${esc(x)}</span>`).join('');
+const procBtnHTML=list=>`${(list&&list.length)?procTags(list):`<span class="ph-t">${isPC()?'クリックして選択':'タップして選択'}</span>`}${I('chev')}`;
+function openProcessPicker(current,onChange){
+ const sel=new Set(current||[]);
+ const w=openModal(`<div class="mhead"><h2>加工区分</h2><span class="sp"></span><button class="icon-btn" data-close aria-label="閉じる">${I('x')}</button></div>
+ <div class="mbody"><p class="hint" style="margin:0 0 12px">当てはまるものをすべて選んでください（複数可）</p><div class="proc-list">${PROCESSES.map(k=>`<label class="proc-opt"><input type="checkbox" value="${esc(k)}" ${sel.has(k)?'checked':''}>${esc(k)}</label>`).join('')}</div></div>
+ <div class="mfoot"><button class="btn" data-clear>すべて外す</button><span class="sp"></span><button class="btn primary" data-close>${I('check')}決定</button></div>`);
+ const emit=()=>onChange(PROCESSES.filter(k=>sel.has(k)));
+ w.addEventListener('change',e=>{const c=e.target;if(c.type!=='checkbox')return;c.checked?sel.add(c.value):sel.delete(c.value);emit()});
+ w.addEventListener('click',e=>{if(e.target.closest('[data-clear]')){sel.clear();$$('input',w).forEach(i=>i.checked=false);emit()}});
+ return w;
+}
+const pTitle=p=>p?(p.name||p.model||'（名称なし）'):'';
+
+/* ========== 1. 注文 ========== */
+function groupOf(o){const d=daysLeft(o.dueDate);if(d===null)return'納期未設定';if(d<0)return'期限切れ';if(d===0)return'今日';if(d===1)return'明日';if(d<=7)return'1週間以内';return'それ以降'}
+function dueBlock(o){
+ const d=daysLeft(o.dueDate);let cls='',left='';
+ if(d===null)left='未設定';else if(d<0){cls='over';left=`${-d}日超過`}else if(d===0){cls='today';left='今日'}else if(d<=3){cls='soon';left=`あと${d}日`}else left=`あと${d}日`;
+ if(o.done){cls='';left='完了'}
+ return `<div class="due ${cls}"><div class="d">${o.dueDate?fmtMD(o.dueDate):'—'}</div><div class="w">${o.dueDate?`(${wd(o.dueDate)})`:''}</div><div class="left">${left}</div></div>`;
+}
+function orderCard(o){
+ const p=prodById(o.productId);const dn=k=>p?((p.drawings||[]).filter(d=>d.kind===k).length+(p[k+'Url']?1:0)):0;
+ const ni=dn('iron'),nl=dn('lining');const ph=(o.photos||[]).length;
+ return `<div class="order ${o.urgent&&!o.done?'urgent':''} ${o.done?'done':''}" data-action="edit-order" data-id="${o.id}">
+  ${dueBlock(o)}
+  <div class="ob">
+   <div class="r1">${o.urgent&&!o.done?`<span class="badge urgent">${I('flag')}急ぎ</span>`:''}${o.done?`<span class="badge done">${I('check')}完了</span>`:''}<span class="cust">${esc(o.customer||'（顧客名なし）')}</span></div>
+   <div class="prod">${(o.process&&o.process.length)?procTags(o.process):o.name?esc(o.name):''}${o.model?`<span class="model" style="${(o.process&&o.process.length)||o.name?'':'margin-left:0'}">${esc(o.model)}</span>`:'<span class="cust">（型番なし）</span>'}${o.qty!==''&&o.qty!=null?`<span class="qty">× ${esc(o.qty)}</span>`:''}</div>
+   <div class="meta"><span>注文日 ${fmtFull(o.orderDate)}</span><span>前回 ${o.prevOrderDate?fmtFull(o.prevOrderDate):'なし'}</span></div>
+   ${o.note?`<div class="note">${esc(o.note.split('\n')[0])}</div>`:''}
+  </div>
+  <div class="oa">
+   <div class="row"><button class="btn sm dbtn" data-action="open-drawing" data-pid="${o.productId||''}" data-kind="iron" ${ni?'':'disabled'}>鉄心 <span class="n">${ni||''}</span></button>
+   <button class="btn sm dbtn" data-action="open-drawing" data-pid="${o.productId||''}" data-kind="lining" ${nl?'':'disabled'}>ライニング <span class="n">${nl||''}</span></button></div>
+   <div class="row"><button class="btn sm dbtn" data-action="order-photos" data-id="${o.id}" ${ph?'':'disabled'}>${I('image')}<span class="n">${ph||''}</span></button>
+   <button class="btn sm dbtn" data-action="toggle-done" data-id="${o.id}">${o.done?'戻す':I('check')+'完了'}</button></div>
+  </div></div>`;
+}
+function dueState(o){const d=daysLeft(o.dueDate);let cls='',left='';
+ if(d===null)left='未設定';else if(d<0){cls='over';left=`${-d}日超過`}else if(d===0){cls='today';left='今日'}else{cls=d<=3?'soon':'';left=`あと${d}日`}
+ if(o.done){cls='';left='完了'}return{cls,left}}
+const OHEAD=`<div class="ohead"><div>納期</div><div>顧客名</div><div>加工区分</div><div>型番</div><div class="num">数量</div><div class="dates">注文日 / 前回</div><div>図面・写真</div><div></div></div>`;
+function orderRow(o){
+ const p=prodById(o.productId);const dn=k=>p?((p.drawings||[]).filter(d=>d.kind===k).length+(p[k+'Url']?1:0)):0;
+ const ni=dn('iron'),nl=dn('lining'),ph=(o.photos||[]).length,st=dueState(o);
+ return `<div class="orow ${o.urgent&&!o.done?'urgent':''} ${o.done?'done':''}" data-action="edit-order" data-id="${o.id}">
+  <div class="c"><div class="dm ${st.cls}"><b>${o.dueDate?fmtMD(o.dueDate):'—'}${o.dueDate?`<span>(${wd(o.dueDate)})</span>`:''}</b><i>${st.left}</i></div></div>
+  <div class="c"><div class="cust-c">${o.urgent&&!o.done?`<span class="badge urgent">${I('flag')}急ぎ</span>`:''}${esc(o.customer||'—')}</div></div>
+  <div class="c">${(o.process&&o.process.length)?procTags(o.process):o.name?esc(o.name):'<span class="mut">—</span>'}</div>
+  <div class="c">${o.model?`<span class="model">${esc(o.model)}</span>`:'<span class="mut">—</span>'}</div>
+  <div class="c num">${esc(o.qty??'')}</div>
+  <div class="c dates">${fmtFull(o.orderDate)}<br><span class="mut">前回 ${o.prevOrderDate?fmtFull(o.prevOrderDate):'なし'}</span></div>
+  <div class="c acts"><button class="btn sm" data-action="open-drawing" data-pid="${o.productId||''}" data-kind="iron" ${ni?'':'disabled'}>鉄心${ni?' '+ni:''}</button><button class="btn sm" data-action="open-drawing" data-pid="${o.productId||''}" data-kind="lining" ${nl?'':'disabled'}>ライニング${nl?' '+nl:''}</button><button class="btn sm" data-action="order-photos" data-id="${o.id}" ${ph?'':'disabled'} title="写真">${I('image')}${ph||''}</button></div>
+  <div class="c"><button class="btn sm" data-action="toggle-done" data-id="${o.id}" style="width:100%">${o.done?'戻す':I('check')+'完了'}</button></div>
+  ${o.note?`<div class="onote">${esc(o.note.split('\n')[0])}</div>`:''}
+ </div>`;
+}
+function renderOrders(){
+ $('#title').textContent='注文一覧';
+ $('#topActions').innerHTML=`<button class="btn" data-action="new-order-ocr">${I('camera')}写真から登録</button><button class="btn primary" data-action="new-order">${I('plus')}注文を登録</button>`;
+ $('#view').innerHTML=`<div class="toolbar">
+  <div class="seg" id="oseg">${[['open','未完了'],['done','完了'],['all','すべて']].map(([v,l])=>`<button data-action="ofilter" data-v="${v}" class="${state.orderFilter===v?'on':''}">${l}</button>`).join('')}</div>
+  <label class="chk"><input type="checkbox" id="urgentTop" ${state.urgentTop?'checked':''}>急ぎを先頭に</label>
+  <input class="search-in" id="orderText" type="search" placeholder="顧客名・型番・加工区分で絞り込み" value="${esc(state.orderText)}">
+ </div><div id="orderStats"></div><div id="orderList"></div>`;
+ $('#urgentTop').onchange=e=>{state.urgentTop=e.target.checked;savePrefs();renderOrderList()};
+ $('#orderText').oninput=e=>{state.orderText=e.target.value;renderOrderList()};
+ renderOrderList();
+}
+function renderOrderList(){
+ const open=state.orders.filter(o=>!o.done);
+ const over=open.filter(o=>{const d=daysLeft(o.dueDate);return d!==null&&d<0}).length,td=open.filter(o=>daysLeft(o.dueDate)===0).length,ur=open.filter(o=>o.urgent).length;
+ $('#orderStats').innerHTML=`<div class="stats"><span class="stat">未完了 <b>${open.length}</b></span>${over?`<span class="stat red">期限切れ <b>${over}</b></span>`:''}${td?`<span class="stat amber">今日納期 <b>${td}</b></span>`:''}${ur?`<span class="stat red">急ぎ <b>${ur}</b></span>`:''}</div>`;
+ let list=state.orders.filter(o=>state.orderFilter==='all'||(state.orderFilter==='done'?o.done:!o.done));
+ const t=norm(state.orderText);if(t)list=list.filter(o=>norm([o.customer,o.name,o.model,o.note,(o.process||[]).join(' ')].join(' ')).includes(t)||spokenAlpha(t)!==t&&norm([o.model].join('')).includes(spokenAlpha(t)));
+ const key=o=>o.dueDate||'9999-12-31';
+ list.sort((a,b)=>(state.urgentTop?(+!!b.urgent)-(+!!a.urgent):0)||key(a).localeCompare(key(b))||(+!!b.urgent)-(+!!a.urgent)||(a.createdAt||0)-(b.createdAt||0));
+ if(!list.length){$('#orderList').innerHTML=`<div class="empty-state">${I('list')}<div>${state.orders.length?'該当する注文はありません':'まだ注文がありません。右上の「注文を登録」から追加してください。'+(isPC()?'<br>注文書の画像をこの画面にドラッグしても登録できます。':'')}</div></div>`;return}
+ const pc=isPC(),grp=items=>pc?items.map(orderRow).join(''):`<div class="orders">${items.map(orderCard).join('')}</div>`,wrap=h=>pc?`<div class="otable">${OHEAD}${h}</div>`:h;
+ if(state.orderFilter==='done'){$('#orderList').innerHTML=wrap(grp(list));return}
+ const sections=[];const push=(title,o,red)=>{let s=sections[sections.length-1];if(!s||s.title!==title){s={title,items:[],red};sections.push(s)}s.items.push(o)};
+ for(const o of list){if(state.urgentTop&&o.urgent&&!o.done)push('急ぎ',o,true);else if(o.done)push('完了',o);else{const g=groupOf(o);push(g,o,g==='期限切れ'||g==='今日')}}
+ $('#orderList').innerHTML=wrap(sections.map(s=>`<div class="group-h ${s.red?'red':''}">${s.title}<span class="n">${s.items.length}件</span></div>${grp(s.items)}`).join(''));
+}
+
+function openOrderForm(order,preset={}){
+ const isNew=!order;
+ const o=order?clone(order):{id:uid(),customer:'',productId:null,name:'',process:[],model:'',qty:'',orderDate:today(),dueDate:'',prevOrderDate:'',urgent:false,note:'',photos:[],done:false,createdAt:Date.now()};
+ let p=prodById(o.productId);
+ if(preset.productId){p=prodById(preset.productId);if(p){o.productId=p.id;o.model=p.model}}
+ if(isNew&&p&&!o.prevOrderDate)o.prevOrderDate=prevOrderOf(p.id,o.id,o.orderDate,o.createdAt);
+ const D={prodId:p?p.id:null,drawings:p?clone(p.drawings||[]):[],ironUrl:p?p.ironUrl||'':'',liningUrl:p?p.liningUrl||'':'',photos:[...(o.photos||[])],newPhotos:[],prevAuto:isNew||!o.prevOrderDate,process:[...(o.process||[])]};
+ const w=openModal(`<div class="mhead"><h2>${isNew?'注文を登録':'注文を編集'}</h2><span class="sp"></span><button class="icon-btn" data-close aria-label="閉じる">${I('x')}</button></div>
+ <form class="mbody" autocomplete="off" onsubmit="return false">
+  <div class="ocr-cta"><button type="button" class="btn primary" data-act="ocr">${I('camera')}写真から自動入力</button><span class="only-tab">注文書やFAXを撮ると、顧客名・型番・加工区分・数量・納期などを読み取って入力します</span><span class="only-pc">注文書の画像をここにドラッグするか、ボタンから選ぶと、顧客名・型番・加工区分・数量・納期などを読み取って入力します</span></div>
+  <div class="grid">
+   <label class="f c4"><span>顧客名</span><input name="customer" list="dlCust" value="${esc(o.customer)}"></label>
+   <label class="f c2 urgent-toggle"><input type="checkbox" name="urgent" ${o.urgent?'checked':''}><span class="box">${I('flag')}急ぎの品</span></label>
+   <div class="f c3" data-fld="process"><span>加工区分 <small>複数選択できます</small></span><button type="button" class="proc-btn" data-act="proc">${procBtnHTML(D.process)}</button></div>
+   <label class="f c3"><span>型番</span><input name="pmodel" list="dlModel" autocapitalize="characters" value="${esc(o.model)}"></label>
+   <label class="f c2"><span>数量</span><input name="qty" type="number" inputmode="numeric" min="0" value="${esc(o.qty)}"></label>
+   <label class="f c2"><span>注文日</span><input name="orderDate" type="date" value="${esc(o.orderDate)}"></label>
+   <label class="f c2"><span>納期 <em>*</em></span><input name="dueDate" type="date" value="${esc(o.dueDate)}"></label>
+   <label class="f c2"><span>前回の注文日 <small id="prevHint"></small></span><input name="prevOrderDate" type="date" value="${esc(o.prevOrderDate)}"></label>
+   <label class="f c4 chk" style="flex-direction:row;align-self:end">${isNew?'':`<input type="checkbox" name="done" ${o.done?'checked':''} style="accent-color:var(--ok)">完了済みにする`}</label>
+  </div>
+  <div class="linkinfo" id="linkInfo"></div>
+  <section class="fs"><h3>図面 <small>同じ型番の製品に保存され、次回の注文でも使えます</small></h3><div id="drawArea"></div></section>
+  <section class="fs" data-drop="photos"><h3>備考</h3>
+   <label class="f"><textarea name="note" rows="3" placeholder="メモ・注意事項など">${esc(o.note)}</textarea></label>
+   <div class="photos" id="notePhotos"></div>
+   <div class="btnrow"><button type="button" class="btn only-tab" data-act="p-cam">${I('camera')}撮影</button><button type="button" class="btn" data-act="p-lib">${I('image')}写真を選ぶ</button></div>
+   <p class="hint">ここで追加した写真は、製品の写真にも自動で登録されます。<span class="only-pc">画像をこの欄にドラッグしても追加できます。</span></p>
+  </section>
+ </form>
+ <div class="mfoot">${isNew?'':`<button class="btn danger" data-act="delete">${I('trash')}削除</button>`}<span class="sp"></span><button class="btn" data-close>キャンセル</button><button class="btn primary" data-act="save">${I('check')}保存</button></div>`,{wide:true,sticky:true});
+ const form=$('form',w),F=n=>form.elements.namedItem(n);
+ const refreshDraw=()=>{$('#drawArea',w).innerHTML=drawingAreaHTML(D);hydrate(w)};
+ const refreshPhotos=()=>{$('#notePhotos',w).innerHTML=photoThumbs(D.photos);hydrate(w)};
+ const refreshLink=()=>{const li=$('#linkInfo',w);const pp=prodById(D.prodId);
+  if(pp){const n=ordersOf(pp.id).filter(x=>x.id!==o.id).length;li.className='linkinfo';li.innerHTML=`登録済みの製品 <b>${esc(pp.model||'')}${pp.name&&pp.model?' / '+esc(pp.name):pp.model?'':esc(pp.name||'')}</b>　過去の注文 ${n}件`}
+  else if(F('pmodel').value.trim()){li.className='linkinfo new';li.textContent='新しい製品です。保存すると製品管理にも自動で登録されます。'}
+  else{li.className='linkinfo';li.textContent='型番を入力すると、登録済みの製品と図面を呼び出します。'}
+  $('#prevHint',w).textContent=D.prevAuto&&F('prevOrderDate').value?'自動入力':'';
+ };
+ const relink=()=>{
+  const model=F('pmodel').value.trim();const np=findProductBy(model?'':o.name,model);
+  if((np?np.id:null)!==D.prodId){
+   if(np){D.prodId=np.id;D.drawings=clone(np.drawings||[]);D.ironUrl=np.ironUrl||'';D.liningUrl=np.liningUrl||'';if(!model)F('pmodel').value=np.model||''}
+   else{if(D.prodId){D.drawings=[];D.ironUrl='';D.liningUrl=''}D.prodId=null}
+   refreshDraw();
+  }
+  if(D.prevAuto)F('prevOrderDate').value=D.prodId?prevOrderOf(D.prodId,o.id,F('orderDate').value||today(),o.createdAt):'';
+  refreshLink();
+ };
+ F('pmodel').addEventListener('change',relink);F('orderDate').addEventListener('change',relink);
+ F('prevOrderDate').addEventListener('input',()=>{D.prevAuto=false;refreshLink()});
+ form.addEventListener('input',e=>{if(e.target.name==='ironUrl'||e.target.name==='liningUrl')D[e.target.name]=e.target.value});
+ refreshDraw();refreshPhotos();refreshLink();
+ const setProc=list=>{D.process=list;$('[data-act=proc]',w).innerHTML=procBtnHTML(list)};
+ enableDrop(w,'.dkind',async(z,fs)=>{const k=z.dataset.kind,add=await drawingsFromFiles(k,fs);if(add.length){D.drawings.push(...add);refreshDraw();toast(`${KIND[k]}図面を${add.length}件追加しました`)}else toast('画像かPDFをドラッグしてください')});
+ enableDrop(w,'[data-drop=photos]',async(z,fs)=>{const ids=await photosFromFiles(fs);if(ids.length){D.photos.push(...ids);D.newPhotos.push(...ids);refreshPhotos();toast(`写真を${ids.length}枚追加しました`)}});
+ enableDrop(w,'.ocr-cta',(z,fs)=>{const f=fs.find(f=>isImg(f.type));if(f)openOcrDialog(applyOcr,f);else toast('画像ファイルをドラッグしてください')});
+ const applyOcr=r=>{
+  const set=(n,v)=>{if(v)F(n).value=v};
+  set('customer',r.customer);if(r.process&&r.process.length)setProc(r.process);set('pmodel',r.model);set('qty',r.qty);set('orderDate',r.orderDate);set('dueDate',r.dueDate);
+  if(r.urgent)F('urgent').checked=true;
+  if(r.photoId){D.photos.push(r.photoId);D.newPhotos.push(r.photoId);refreshPhotos()}
+  if(r.noteText)F('note').value=(F('note').value?F('note').value+'\n':'')+r.noteText;
+  relink();toast('読み取った内容を入力しました。確認して保存してください');
+ };
+ if(preset.ocr)openOcrDialog(applyOcr,preset.ocrFile);
+
+ w.addEventListener('click',async e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;const act=el.dataset.act;e.stopPropagation();
+  if(await handleDrawingAct(act,el,D,refreshDraw))return;
+  if(act==='ocr')openOcrDialog(applyOcr);
+  else if(act==='proc')openProcessPicker(D.process,setProc);
+  else if(act==='p-cam'||act==='p-lib'){const ids=await addPhotos(act==='p-cam');if(ids.length){D.photos.push(...ids);D.newPhotos.push(...ids);refreshPhotos();toast(`写真を${ids.length}枚追加しました`)}}
+  else if(act==='p-del'){if(confirm('この写真を備考から外しますか？')){D.photos.splice(+el.dataset.i,1);refreshPhotos()}}
+  else if(act==='p-open')openViewer(D.photos,+el.dataset.i);
+  else if(act==='delete'){if(!confirm('この注文を削除しますか？（元に戻せません）'))return;await DB.del('orders',o.id);state.orders=state.orders.filter(x=>x.id!==o.id);closeModal(w);refreshDatalists();render();toast('注文を削除しました');gcFiles()}
+  else if(act==='save'){
+   const v=n=>(F(n).value||'').trim();const model=v('pmodel'),name=model?'':(o.name||'');
+   if(!model&&!name){alert('型番を入力してください');F('pmodel').focus();return}
+   if(!v('dueDate')){alert('納期を入力してください');F('dueDate').focus();return}
+   const now=Date.now();let pp=prodById(D.prodId)||findProductBy(name,model);
+   if(!pp){pp={id:uid(),name:'',model,drawings:[],ironUrl:'',liningUrl:'',photos:[],createdAt:now};state.products.push(pp)}
+   else{if(!pp.model&&model)pp.model=model}
+   const fixModel=pp.model&&norm(pp.model)===norm(model)?pp.model:model;
+   pp.drawings=D.drawings;pp.ironUrl=(D.ironUrl||'').trim();pp.liningUrl=(D.liningUrl||'').trim();pp.photos=pp.photos||[];
+   for(const id of D.newPhotos)if(D.photos.includes(id)&&!pp.photos.includes(id))pp.photos.push(id);
+   pp.updatedAt=now;await DB.put('products',pp);
+   Object.assign(o,{customer:v('customer'),productId:pp.id,name:o.name||'',process:D.process,model:fixModel,qty:v('qty'),orderDate:v('orderDate'),dueDate:v('dueDate'),prevOrderDate:v('prevOrderDate'),urgent:F('urgent').checked,note:F('note').value.trim(),photos:D.photos,done:F('done')?F('done').checked:o.done,updatedAt:now});
+   await DB.put('orders',o);upsert(state.orders,o);
+   delete w.dataset.sticky;closeModal(w);refreshDatalists();render();toast(isNew?'注文を登録しました':'保存しました');gcFiles();
+  }
+ });
+ if(isNew&&!preset.ocr)setTimeout(()=>F('customer').focus(),50);
+}
+
+/* ========== 2. 製品管理 ========== */
+function productThumb(p){const ph=(p.photos||[])[0]||((p.drawings||[]).find(d=>isImg(d.type))||{}).fileId;return ph?`<img data-fid="${ph}" alt="">`:I('box')}
+function renderProducts(){
+ $('#title').textContent='製品管理';
+ $('#topActions').innerHTML=`<button class="btn primary" data-action="new-product">${I('plus')}製品を登録</button>`;
+ $('#view').innerHTML=`<div class="toolbar"><input class="search-in" id="prodText" type="search" placeholder="製品名・型番で絞り込み" value="${esc(state.prodText)}"><span class="stat">登録数 <b>${state.products.length}</b></span></div><div id="prodList"></div>`;
+ $('#prodText').oninput=e=>{state.prodText=e.target.value;renderProdList()};
+ enableDrop($('#prodList'),'.pcard',async(z,fs)=>{const p=prodById(z.dataset.id);if(!p)return;const ids=await photosFromFiles(fs);if(!ids.length){toast('画像ファイルをドラッグしてください');return}p.photos=[...(p.photos||[]),...ids];p.updatedAt=Date.now();await DB.put('products',p);toast(`「${pTitle(p)}」に写真を${ids.length}枚登録しました`);renderProdList()});
+ renderProdList();
+}
+function renderProdList(){
+ const t=norm(state.prodText),ta=spokenAlpha(t);
+ let list=state.products.filter(p=>{if(!t)return true;const s=norm(p.name+' '+p.model);return s.includes(t)||s.includes(ta)});
+ list.sort((a,b)=>pTitle(a).localeCompare(pTitle(b),'ja'));
+ if(!list.length){$('#prodList').innerHTML=`<div class="empty-state">${I('box')}<div>${state.products.length?'該当する製品はありません':'まだ製品がありません。「製品を登録」か、注文の登録で自動的に追加されます。'}</div></div>`;return}
+ $('#prodList').innerHTML=`<div class="pgrid">${list.map(p=>{const ni=(p.drawings||[]).filter(d=>d.kind==='iron').length,nl=(p.drawings||[]).filter(d=>d.kind==='lining').length,last=prevOrderOf(p.id,null,null);
+  return `<div class="pcard" data-action="edit-product" data-id="${p.id}"><div class="thumb">${productThumb(p)}</div><div style="min-width:0">
+   <div class="pname">${esc(pTitle(p))}</div>${p.model&&p.name?`<div class="pmodel"><span class="model">${esc(p.model)}</span></div>`:''}
+   <div class="pmeta">鉄心 ${ni} ・ ライニング ${nl} ・ 写真 ${(p.photos||[]).length}${last?` ・ 前回注文 ${fmtFull(last)}`:''}</div>
+   <div class="pact"><button class="btn sm" data-action="quick-photo" data-id="${p.id}"><span class="only-tab" style="display:contents">${I('camera')}撮影して登録</span><span class="only-pc" style="display:contents">${I('image')}写真を追加</span></button><button class="btn sm" data-action="new-order-for" data-id="${p.id}">${I('plus')}注文</button></div>
+  </div></div>`}).join('')}</div>`;
+ hydrate($('#prodList'));
+}
+async function quickPhoto(pid){
+ const p=prodById(pid);if(!p)return;const ids=await addPhotos(!isPC());if(!ids.length)return;
+ p.photos=[...(p.photos||[]),...ids];p.updatedAt=Date.now();await DB.put('products',p);toast(`「${p.name||p.model}」に写真を登録しました`);render();
+}
+function openProductForm(prod){
+ let isNew=!prod;
+ const P=prod?clone(prod):{id:uid(),name:'',model:'',drawings:[],ironUrl:'',liningUrl:'',photos:[],createdAt:Date.now()};
+ const D={drawings:P.drawings||[],ironUrl:P.ironUrl||'',liningUrl:P.liningUrl||'',photos:P.photos||[]};
+ const hist=isNew?[]:ordersOf(P.id);
+ const w=openModal(`<div class="mhead"><h2>${isNew?'製品を登録':'製品を編集'}</h2><span class="sp"></span><button class="icon-btn" data-close aria-label="閉じる">${I('x')}</button></div>
+ <form class="mbody" autocomplete="off" onsubmit="return false">
+  <div class="grid"><label class="f c3"><span>製品名</span><input name="pname" value="${esc(P.name)}"></label><label class="f c3"><span>型番</span><input name="pmodel" autocapitalize="characters" value="${esc(P.model)}"></label></div>
+  <section class="fs"><h3>図面</h3><div id="drawArea"></div></section>
+  <section class="fs" data-drop="photos"><h3>写真 <small class="only-tab">撮影するとその場で自動保存されます</small><small class="only-pc">画像をここにドラッグすると、その場で自動保存されます</small></h3><div class="photos" id="prodPhotos"></div>
+   <div class="btnrow"><button type="button" class="btn primary only-tab" data-act="p-cam">${I('camera')}撮影して登録</button><button type="button" class="btn" data-act="p-lib">${I('image')}写真を選ぶ</button></div></section>
+  ${hist.length?`<section class="fs"><h3>注文履歴 <small>${hist.length}件</small></h3><table class="hist"><tr><th>注文日</th><th>顧客</th><th>加工区分</th><th>数量</th><th>納期</th><th></th></tr>${hist.slice(0,30).map(o=>`<tr><td>${fmtFull(o.orderDate)}</td><td>${esc(o.customer)}</td><td>${esc((o.process||[]).join('・')||o.name||'')}</td><td>${esc(o.qty)}</td><td>${fmtFull(o.dueDate)}</td><td>${o.done?'完了':'<b style="color:var(--urgent)">進行中</b>'}</td></tr>`).join('')}</table></section>`:''}
+ </form>
+ <div class="mfoot">${isNew?'':`<button class="btn danger" data-act="delete">${I('trash')}削除</button>`}<span class="sp"></span><button class="btn" data-close>閉じる</button><button class="btn primary" data-act="save">${I('check')}保存</button></div>`,{wide:true,sticky:true});
+ const form=$('form',w),F=n=>form.elements.namedItem(n);
+ const refreshDraw=()=>{$('#drawArea',w).innerHTML=drawingAreaHTML(D);hydrate(w)};
+ const refreshPhotos=()=>{$('#prodPhotos',w).innerHTML=photoThumbs(D.photos)||'<span class="empty">写真はまだありません</span>';hydrate(w)};
+ form.addEventListener('input',e=>{if(e.target.name==='ironUrl'||e.target.name==='liningUrl')D[e.target.name]=e.target.value});
+ refreshDraw();refreshPhotos();
+ enableDrop(w,'.dkind',async(z,fs)=>{const k=z.dataset.kind,add=await drawingsFromFiles(k,fs);if(add.length){D.drawings.push(...add);refreshDraw();toast(`${KIND[k]}図面を${add.length}件追加しました（保存を押してください）`)}else toast('画像かPDFをドラッグしてください')});
+ enableDrop(w,'[data-drop=photos]',async(z,fs)=>{const ids=await photosFromFiles(fs);if(!ids.length)return;D.photos.push(...ids);refreshPhotos();toast(await persistPhotos()?`写真を${ids.length}枚登録しました`:'写真を追加しました（製品名か型番を入れて保存してください）')});
+ // 写真は保存ボタンを待たずに即保存
+ const persistPhotos=async()=>{
+  if(isNew){const name=F('pname').value.trim(),model=F('pmodel').value.trim();if(!name&&!model)return false;
+   const dup=findProductBy(name,model);if(dup){alert('同じ型番の製品がすでに登録されています');return false}
+   Object.assign(P,{name,model,drawings:D.drawings,ironUrl:D.ironUrl.trim(),liningUrl:D.liningUrl.trim(),photos:D.photos});state.products.push(P);isNew=false}
+  const real=prodById(P.id);real.photos=[...D.photos];real.updatedAt=Date.now();await DB.put('products',real);return true;
+ };
+ w.addEventListener('click',async e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;const act=el.dataset.act;e.stopPropagation();
+  if(await handleDrawingAct(act,el,D,refreshDraw))return;
+  if(act==='p-cam'||act==='p-lib'){const ids=await addPhotos(act==='p-cam');if(!ids.length)return;D.photos.push(...ids);refreshPhotos();
+   toast(await persistPhotos()?`写真を${ids.length}枚登録しました`:'写真を追加しました（製品名か型番を入れて保存してください）')}
+  else if(act==='p-del'){if(confirm('この写真を削除しますか？')){D.photos.splice(+el.dataset.i,1);refreshPhotos();if(!isNew)await persistPhotos()}}
+  else if(act==='p-open')openViewer(D.photos,+el.dataset.i);
+  else if(act==='delete'){
+   const n=ordersOf(P.id).length;if(!confirm(n?`この製品には注文が${n}件あります。製品を削除すると、それらの注文から図面が見られなくなります。削除しますか？`:'この製品を削除しますか？'))return;
+   for(const o of state.orders.filter(o=>o.productId===P.id)){o.productId=null;await DB.put('orders',o)}
+   await DB.del('products',P.id);state.products=state.products.filter(x=>x.id!==P.id);delete w.dataset.sticky;closeModal(w);refreshDatalists();render();toast('製品を削除しました');gcFiles();
+  }
+  else if(act==='save'){
+   const name=F('pname').value.trim(),model=F('pmodel').value.trim();
+   if(!name&&!model){alert('製品名か型番を入力してください');return}
+   const dup=findProductBy(name,model);if(dup&&dup.id!==P.id&&norm(model)){alert('同じ型番の製品がすでに登録されています');return}
+   const real=prodById(P.id)||P;Object.assign(real,{name,model,drawings:D.drawings,ironUrl:(D.ironUrl||'').trim(),liningUrl:(D.liningUrl||'').trim(),photos:[...D.photos],updatedAt:Date.now()});
+   await DB.put('products',real);upsert(state.products,real);
+   // 注文側の製品名・型番が空なら補う
+   delete w.dataset.sticky;closeModal(w);refreshDatalists();render();toast('製品を保存しました');gcFiles();
+  }
+ });
+ if(isNew)setTimeout(()=>F('pname').focus(),50);
+}
+
+/* ========== 3. 検索 ========== */
+function searchProducts(raw){
+ const q=cleanQuery(raw);const nq=norm(q);if(!nq)return{hits:[],fuzzy:false,q};
+ const vs=[...new Set([nq,spokenAlpha(nq)])];const hits=[];
+ for(const p of state.products){const nm=norm(p.model),nn=norm(p.name);let s=0;
+  for(const v of vs){
+   if(nm){if(nm===v)s=Math.max(s,100);else if(nm.startsWith(v))s=Math.max(s,85);else if(nm.includes(v))s=Math.max(s,70);else if(nm.length>=3&&v.includes(nm))s=Math.max(s,75)}
+   if(nn){if(nn===v)s=Math.max(s,95);else if(nn.includes(v))s=Math.max(s,60);else if(nn.length>=2&&v.includes(nn))s=Math.max(s,55)}
+  }
+  if(s)hits.push({p,s});
+ }
+ if(hits.length)return{hits:hits.sort((a,b)=>b.s-a.s||(a.p.name||'').localeCompare(b.p.name||'','ja')).slice(0,20),fuzzy:false,q};
+ for(const p of state.products){const s=Math.max(...vs.map(v=>Math.max(dice(v,norm(p.model)),dice(v,norm(p.name)))));if(s>=.34)hits.push({p,s})}
+ return{hits:hits.sort((a,b)=>b.s-a.s).slice(0,8),fuzzy:true,q};
+}
+function resultCard(p){
+ const os=ordersOf(p.id),last=os[0],act=os.filter(o=>!o.done).sort((a,b)=>(a.dueDate||'9').localeCompare(b.dueDate||'9'));
+ const ni=(p.drawings||[]).filter(d=>d.kind==='iron').length+(p.ironUrl?1:0),nl=(p.drawings||[]).filter(d=>d.kind==='lining').length+(p.liningUrl?1:0),np=(p.photos||[]).length;
+ return `<div class="rcard"><div class="thumb">${productThumb(p)}</div><div style="min-width:0">
+  <div class="pname">${esc(pTitle(p))}</div>${p.model&&p.name?`<div class="pmodel"><span class="model">${esc(p.model)}</span></div>`:''}
+  <div class="rmeta">${last?`前回注文 ${fmtFull(last.orderDate)}（${esc(last.customer||'—')}・${esc(last.qty)}個）・ 注文 ${os.length}回`:'注文履歴なし'}${act.length?` ・ <span class="act">進行中 ${act.length}件（納期 ${fmtMD(act[0].dueDate)}）</span>`:''}</div>
+  <div class="rbtns"><button class="btn sm" data-action="open-drawing" data-pid="${p.id}" data-kind="iron" ${ni?'':'disabled'}>${I('doc')}鉄心図面 ${ni||''}</button>
+   <button class="btn sm" data-action="open-drawing" data-pid="${p.id}" data-kind="lining" ${nl?'':'disabled'}>${I('doc')}ライニング図面 ${nl||''}</button>
+   <button class="btn sm" data-action="product-photos" data-id="${p.id}" ${np?'':'disabled'}>${I('image')}写真 ${np||''}</button>
+   <button class="btn sm" data-action="edit-product" data-id="${p.id}">詳細</button>
+   <button class="btn sm" data-action="new-order-for" data-id="${p.id}">${I('plus')}注文登録</button></div>
+ </div></div>`;
+}
+function renderSearch(){
+ $('#title').textContent='検索';
+ $('#topActions').innerHTML=state.chat.length?`<button class="btn ghost" data-action="clear-chat">クリア</button>`:'';
+ $('#view').innerHTML=`<div class="chat" id="chatLog"></div>
+ <form class="chatbar" id="chatForm"><div class="inner"><button type="button" class="round mic" id="micBtn" aria-label="音声で検索">${I('mic')}</button><input id="chatIn" type="search" enterkeyhint="search" autocomplete="off" placeholder="製品名か型番を入力（マイクで話してもOK）"><button type="submit" class="round send" aria-label="検索">${I('send')}</button></div></form>`;
+ renderChatLog();
+ $('#chatForm').onsubmit=e=>{e.preventDefault();const v=$('#chatIn').value.trim();if(!v)return;$('#chatIn').value='';$('#chatIn').blur();runSearch(v)};
+ $('#micBtn').onclick=startVoice;
+}
+function renderChatLog(){
+ const log=$('#chatLog');if(!log)return;
+ const recent=[...new Map(state.orders.slice().sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||'')).filter(o=>prodById(o.productId)).map(o=>[o.productId,prodById(o.productId)])).values()].slice(0,8);
+ let h=`<div class="msg bot"><div class="say">製品名か型番を入力するか、マイクを押して話してください。図面・写真・前回の注文日をすぐに表示します。</div>${recent.length?`<div class="sugg">${recent.map(p=>`<button data-action="suggest" data-q="${esc(p.model||p.name)}">${esc(p.model||p.name)}</button>`).join('')}</div>`:''}</div>`;
+ for(const m of state.chat){
+  if(m.role==='user')h+=`<div class="msg user">${esc(m.text)}</div>`;
+  else{const ps=m.ids.map(prodById).filter(Boolean);
+   h+=`<div class="msg bot"><div class="say">${!ps.length?`「${esc(m.q)}」に一致する製品は見つかりませんでした。`:m.fuzzy?`完全に一致する製品はありません。近い候補です：`:`${ps.length}件見つかりました。`}</div>${ps.map(resultCard).join('')}</div>`}
+ }
+ log.innerHTML=h;hydrate(log);
+ requestAnimationFrame(()=>window.scrollTo(0,document.body.scrollHeight));
+}
+function runSearch(q){const r=searchProducts(q);state.chat.push({role:'user',text:q},{role:'bot',q:r.q,ids:r.hits.map(h=>h.p.id),fuzzy:r.fuzzy});if(state.chat.length>40)state.chat=state.chat.slice(-40);renderSearch()}
+let rec=null;
+function startVoice(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const inp=$('#chatIn'),btn=$('#micBtn');
+ if(!SR){alert(isPC()?'このブラウザでは音声ボタンが使えません。\nChrome か Edge で開くか、Windowsなら「Windowsキー＋H」で音声入力できます。':'この画面では音声ボタンが使えません。\n入力欄をタップして、キーボードのマイクボタン（音声入力）で話してください。');inp.focus();return}
+ if(rec){rec.stop();return}
+ let finalText='';rec=new SR();rec.lang='ja-JP';rec.interimResults=true;rec.continuous=false;
+ btn.classList.add('rec');inp.placeholder='聞き取り中…話し終えると自動で検索します';
+ rec.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;inp.value=t;if(e.results[e.results.length-1].isFinal)finalText=t};
+ rec.onerror=e=>{const m={'not-allowed':'マイクの使用が許可されていません。設定でSafariのマイクを許可してください。','service-not-allowed':'音声認識が使えません。キーボードのマイクボタンで入力してください。','network':isPC()?'オフラインでは音声ボタンが使えません。Windowsなら「Windowsキー＋H」で音声入力できます。':'オフラインでは音声ボタンが使えない場合があります。キーボードのマイクボタンで入力してください。','no-speech':'聞き取れませんでした。もう一度どうぞ。'}[e.error];if(m)toast(m)};
+ rec.onend=()=>{rec=null;btn.classList.remove('rec');inp.placeholder='製品名か型番を入力（マイクで話してもOK）';const t=(finalText||inp.value).trim();if(t){inp.value='';runSearch(t)}};
+ try{rec.start()}catch(err){rec=null;btn.classList.remove('rec');toast('音声認識を開始できませんでした')}
+}
+
+/* ========== 設定・バックアップ ========== */
+async function renderSettings(){
+ $('#title').textContent='設定・バックアップ';$('#topActions').innerHTML='';
+ const standalone=window.navigator.standalone||matchMedia('(display-mode: standalone)').matches;
+ let last='';try{last=localStorage.getItem('kanri-lastBackup')||''}catch(e){}
+ const lastDays=last?Math.floor((Date.now()-new Date(last))/86400000):null;
+ $('#view').innerHTML=`
+ <div class="panel"><h3>表示モード</h3><p>画面の大きさに合わせて自動で切り替わります。どちらかに固定することもできます。</p>
+  <div class="seg" id="layoutSeg">${[['auto','自動'],['pc','PC表示'],['tablet','iPad表示']].map(([v,l])=>`<button data-action="layout" data-v="${v}" class="${layoutPref()===v?'on':''}">${l}</button>`).join('')}</div>
+  <p class="hint">いまは <b>${isPC()?'PC表示':'iPad表示'}</b> です。</p></div>
+ ${standalone?'':isIOS?`<div class="panel"><h3>ホーム画面に追加してください</h3><p>ホーム画面から起動すると、ネットがなくても動き、データも消えにくくなります。</p><ol class="steps"><li>Safariの共有ボタン（□に↑）をタップ</li><li>「ホーム画面に追加」を選ぶ</li><li>以後はホーム画面のアイコンから起動</li></ol></div>`:`<div class="panel"><h3>PCにアプリとしてインストールしてください</h3><p>インストールすると、ネットがなくても動き、データも消えにくくなります（Chrome・Edge）。</p><ol class="steps"><li>アドレスバー右端の「インストール」アイコン（画面に↓のマーク）をクリック</li><li>見当たらない場合は、右上の「︙」または「…」メニュー →「キャスト、保存、共有」または「アプリ」→「ページをアプリとしてインストール」</li><li>以後はデスクトップやスタートメニューの「受注・製品管理」から起動</li></ol></div>`}
+ <div class="panel"><h3>保存状況</h3><div class="kv"><div>注文<b>${state.orders.length}</b></div><div>製品<b>${state.products.length}</b></div><div>使用容量<b id="usage">—</b></div><div>データ保護<b id="persist">—</b></div></div></div>
+ <div class="panel"><h3>バックアップ</h3>
+  ${lastDays===null||lastDays>=7?`<div class="warnbox">${lastDays===null?'まだバックアップがありません。':`最後のバックアップから${lastDays}日経っています。`}端末の故障や紛失に備えて、定期的に書き出してください。</div>`:''}
+  <p>データはこの${isPC()?'PC（このブラウザ）':'iPad'}の中だけに保存されています。${last?`<br>前回の書き出し：${new Date(last).toLocaleString('ja-JP')}`:''}</p>
+  <div class="btnrow"><button class="btn primary" data-action="export">${I('down')}書き出す（写真・図面含む）</button><button class="btn" data-action="import">${I('up')}バックアップから復元</button><button class="btn" data-action="csv">${I('doc')}注文一覧をCSVで書き出す（Excel用）</button></div></div>
+ <div class="panel"><h3>iPadのデータをPCへ移す</h3><ol class="steps">
+  <li>iPadでこのアプリの設定を開き、「書き出す」を押す</li>
+  <li>できたファイル（受注管理バックアップ_日付.json）を、AirDrop・メール・iCloud Drive などでPCへ送る</li>
+  <li>PCでこのアプリの設定を開き、「バックアップから復元」でそのファイルを選ぶ</li></ol>
+  <p class="hint">PCからiPadへ戻すときも同じ手順です。iPadとPCのデータは自動では同期しません。両方で入力すると内容がずれるので、ふだん使う端末を1台に決めてください。</p></div>
+ <div class="panel"><h3>写真から自動入力</h3>
+  <p>注文書の写真から文字を読み取る機能です。読み取りはこの端末の中で行い、写真が外部に送られることはありません。</p>
+  <div class="kv"><div>オフラインでの読み取り<b id="ocrState">確認中…</b></div></div>
+  <div class="btnrow" style="margin:6px 0 16px"><button class="btn" data-action="ocr-download">${I('down')}読み取り機能をダウンロード（約32MB）</button></div>
+  <label class="f" style="max-width:420px"><span>自社名（読み取り時に顧客名と間違えないよう除外します）</span><input id="ownName" placeholder="例：〇〇工業株式会社" value="${esc((()=>{try{return localStorage.getItem('kanri-own')||''}catch(e){return ''}})())}"></label></div>
+ <div class="panel"><h3>使い方のヒント</h3><ul class="steps">
+  <li>注文で入力した製品名・型番は製品管理に自動登録され、図面は次回の注文でも呼び出されます。</li>
+  <li>前回の注文日は、同じ製品の過去の注文から自動で入ります。</li>
+  <li>「写真から登録」で注文書を撮ると、顧客名・製品・数量・納期を読み取ります。登録済みの型番が写っていれば、製品と図面も自動で呼び出します。</li>
+  <li>製品一覧の「撮影して登録」で、撮った写真がその製品にすぐ保存されます。</li>
+  <li class="only-tab">音声ボタンが使えない場合は、キーボードのマイクボタンで話すと入力できます。</li>
+  <li class="only-pc">注文書の画像を注文一覧にドラッグすると、読み取って注文を登録できます。図面・写真も各欄にドラッグで追加できます。</li>
+  <li class="only-pc">キーボード：<kbd>N</kbd> 新しい注文 ／ <kbd>/</kbd> 絞り込み ／ <kbd>1</kbd>〜<kbd>4</kbd> 画面切替 ／ <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 ／ <kbd>Esc</kbd> 閉じる</li></ul></div>
+ <p class="hint" style="text-align:center">受注・製品管理 v1.4</p>`;
+ $('#ownName').onchange=e=>{try{localStorage.setItem('kanri-own',e.target.value.trim())}catch(err){}toast('自社名を保存しました')};
+ showOcrState();
+ try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();$('#usage').textContent=(e.usage/1048576).toFixed(1)+' MB'}}catch(e){}
+ try{if(navigator.storage&&navigator.storage.persisted){$('#persist').textContent=(await navigator.storage.persisted())?'有効':'標準'}}catch(e){}
+}
+async function showOcrState(){const el=$('#ocrState');if(!el)return;const r=await ocrReady();el.textContent=r===null?'—':r?'準備完了':'未ダウンロード';el.style.color=r?'var(--ok)':r===false?'var(--warn)':''}
+async function downloadOcr(){
+ if(!navigator.serviceWorker||!navigator.serviceWorker.controller){toast('ホーム画面に追加して起動してから実行してください');return}
+ const el=$('#ocrState');let i=0;
+ try{for(const f of OCR_FILES){if(el)el.textContent=`ダウンロード中 ${++i}/${OCR_FILES.length}`;const r=await fetch(f);if(!r.ok)throw new Error(f);await r.blob()}toast('読み取り機能をダウンロードしました')}
+ catch(e){toast('ダウンロードに失敗しました。ネット接続を確認してください')}
+ showOcrState();
+}
+const blobToDataURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+function dataURLtoBlob(u){const[h,d]=u.split(',');const type=(h.match(/data:([^;]*)/)||[])[1]||'';const bin=atob(d);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type})}
+async function exportData(){
+ toast('書き出しの準備中…');await gcFiles();
+ const files=await DB.all('files');
+ const parts=[`{"app":"kanri","version":1,"exportedAt":${JSON.stringify(new Date().toISOString())},"orders":${JSON.stringify(state.orders)},"products":${JSON.stringify(state.products)},"files":[`];
+ for(let i=0;i<files.length;i++){const f=files[i];parts.push((i?',':'')+JSON.stringify({id:f.id,name:f.name,type:f.type,createdAt:f.createdAt,data:await blobToDataURL(f.blob)}))}
+ parts.push(']}');
+ const name=`受注管理バックアップ_${today()}.json`;const blob=new Blob(parts,{type:'application/json'});
+ const markDone=()=>{try{localStorage.setItem('kanri-lastBackup',new Date().toISOString())}catch(e){}if(state.tab==='settings')renderSettings()};
+ if(!isPC())try{const file=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});markDone();toast('書き出しました');return}}
+ catch(e){if(e&&e.name==='AbortError')return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000);markDone();toast('書き出しました');
+}
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}
+async function exportCSV(){
+ const rows=[['納期','顧客名','加工区分','型番','数量','注文日','前回の注文日','急ぎ','状態','備考']];
+ for(const o of [...state.orders].sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')))
+  rows.push([o.dueDate,o.customer,(o.process||[]).join('・')||o.name||'',o.model,o.qty,o.orderDate,o.prevOrderDate,o.urgent?'急ぎ':'',o.done?'完了':'未完了',o.note]);
+ const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
+ const name=`注文一覧_${today()}.csv`,blob=new Blob([csv],{type:'text/csv'});
+ if(!isPC()){try{const file=new File([blob],name,{type:'text/csv'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}}
+ saveBlob(blob,name);toast('CSVを書き出しました');
+}
+async function importData(){
+ const[f]=await pickFiles({accept:'application/json,.json',multiple:false});if(!f)return;
+ let d;try{d=JSON.parse(await f.text())}catch(e){alert('ファイルを読み込めませんでした');return}
+ if(!d||d.app!=='kanri'||!Array.isArray(d.orders)||!Array.isArray(d.products)){alert('このアプリのバックアップファイルではありません');return}
+ if(!confirm(`バックアップ（${d.exportedAt?new Date(d.exportedAt).toLocaleString('ja-JP'):'日時不明'}）\n注文 ${d.orders.length}件・製品 ${d.products.length}件\n\n現在のデータをすべて置き換えて復元します。よろしいですか？`))return;
+ toast('復元中…');
+ await DB.clear('orders');await DB.clear('products');await DB.clear('files');urlCache.forEach(u=>URL.revokeObjectURL(u));urlCache.clear();
+ for(const x of d.files||[]){const blob=dataURLtoBlob(x.data);await DB.put('files',{id:x.id,blob,name:x.name,type:x.type||blob.type,size:blob.size,createdAt:x.createdAt})}
+ for(const p of d.products)await DB.put('products',p);for(const o of d.orders)await DB.put('orders',o);
+ state.orders=d.orders;state.products=d.products;refreshDatalists();render();toast('復元しました');
+}
+
+/* ========== 表示モード（PC / iPad） ========== */
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const layoutPref=()=>{try{return localStorage.getItem('kanri-layout')||'auto'}catch(e){return 'auto'}};
+const isPC=()=>document.documentElement.dataset.layout==='pc';
+function applyLayout(){const p=layoutPref();const v=(p==='pc'||(p==='auto'&&!isIOS&&innerWidth>=1100))?'pc':'tablet';if(document.documentElement.dataset.layout===v)return false;document.documentElement.dataset.layout=v;return true}
+applyLayout();
+let layoutT;addEventListener('resize',()=>{clearTimeout(layoutT);layoutT=setTimeout(()=>{if(applyLayout())render();else setTopH()},150)});
+const setTopH=()=>{const t=$('.topbar');if(t)document.documentElement.style.setProperty('--toph',t.offsetHeight+'px')};
+
+/* ========== 画面切り替え・操作 ========== */
+const TABS=[['orders','注文','list'],['products','製品','box'],['search','検索','search'],['settings','設定','gear']];
+$('#tabbar').innerHTML=`<div class="brand only-pc"><img src="icon-192.png" alt="">受注・製品管理</div>`+TABS.map(([k,l,i])=>`<button data-tab="${k}">${I(i)}<span>${l}</span></button>`).join('')+`<div class="kbd-hint only-pc"><kbd>N</kbd> 新しい注文<br><kbd>/</kbd> 絞り込み・検索<br><kbd>1</kbd>〜<kbd>4</kbd> 画面切替<br><kbd>Ctrl</kbd>+<kbd>S</kbd> 保存<br><kbd>Esc</kbd> 閉じる</div>`;
+$('#tabbar').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(rec)rec.stop();state.tab=b.dataset.tab;window.scrollTo(0,0);render()}});
+function render(){
+ document.body.dataset.tab=state.tab;$$('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===state.tab));
+ ({orders:renderOrders,products:renderProducts,search:renderSearch,settings:renderSettings})[state.tab]();
+ setTopH();
+}
+/* ---- キーボード操作 ---- */
+const typing=e=>{const t=e.target;return !!t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))};
+document.addEventListener('keydown',e=>{
+ const top=$('#modalRoot').lastElementChild;
+ if(e.key==='Escape'&&top){e.preventDefault();if(top.dataset.sticky&&!confirm('入力中の内容を破棄して閉じますか？'))return;closeModal(top);return}
+ if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S'||e.key==='Enter')){if(top){const b=top.querySelector('[data-act=save],[data-o=apply]');if(b){e.preventDefault();b.click()}}else if(e.key!=='Enter')e.preventDefault();return}
+ if(top){if(top.classList.contains('viewer-wrap')){const b=e.key==='ArrowLeft'?top.querySelector('.vnav.l'):e.key==='ArrowRight'?top.querySelector('.vnav.r'):null;if(b){e.preventDefault();b.click()}}return}
+ if(typing(e)||e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return;
+ if(e.key==='n'||e.key==='N'){e.preventDefault();openOrderForm(null)}
+ else if(e.key==='/'){const i=$('#orderText')||$('#prodText')||$('#chatIn');if(i){e.preventDefault();i.focus()}}
+ else if(/^[1-4]$/.test(e.key)){if(rec)rec.stop();state.tab=TABS[+e.key-1][0];window.scrollTo(0,0);render()}
+});
+/* ---- 注文一覧に注文書の画像をドロップ → 読み取って登録 ---- */
+addEventListener('dragover',e=>{if(!hasFiles(e))return;e.preventDefault();if(state.tab==='orders'&&!$('#modalRoot').children.length)document.body.classList.add('dropping')});
+addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('dropping')});
+addEventListener('drop',e=>{if(!hasFiles(e))return;e.preventDefault();document.body.classList.remove('dropping');if($('#modalRoot').children.length||state.tab!=='orders')return;const f=[...e.dataTransfer.files].find(f=>isImg(f.type));if(f)openOrderForm(null,{ocr:true,ocrFile:f});else toast('画像ファイル（JPEG・PNG）をドロップしてください')});
+document.addEventListener('click',async e=>{
+ const el=e.target.closest('[data-action]');if(!el||el.closest('[data-sticky]'))return;
+ const a=el.dataset.action,id=el.dataset.id;
+ switch(a){
+  case 'new-order':openOrderForm(null);break;
+  case 'new-order-ocr':openOrderForm(null,{ocr:true});break;
+  case 'edit-order':openOrderForm(state.orders.find(o=>o.id===id));break;
+  case 'new-order-for':openOrderForm(null,{productId:id});break;
+  case 'new-product':openProductForm(null);break;
+  case 'edit-product':openProductForm(prodById(id));break;
+  case 'quick-photo':quickPhoto(id);break;
+  case 'open-drawing':openDrawings(el.dataset.pid,el.dataset.kind);break;
+  case 'order-photos':{const o=state.orders.find(x=>x.id===id);if(o&&o.photos.length)openViewer(o.photos,0);break}
+  case 'product-photos':{const p=prodById(id);if(p&&p.photos.length)openViewer(p.photos,0);break}
+  case 'toggle-done':{const o=state.orders.find(x=>x.id===id);if(!o)break;o.done=!o.done;o.updatedAt=Date.now();await DB.put('orders',o);renderOrderList();toast(o.done?'完了にしました':'未完了に戻しました');break}
+  case 'ofilter':state.orderFilter=el.dataset.v;savePrefs();$$('#oseg button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.orderFilter));renderOrderList();break;
+  case 'suggest':runSearch(el.dataset.q);break;
+  case 'clear-chat':state.chat=[];renderSearch();break;
+  case 'export':exportData().catch(err=>alert('書き出しに失敗しました：'+err.message));break;
+  case 'ocr-download':downloadOcr();break;
+  case 'csv':exportCSV();break;
+  case 'layout':try{localStorage.setItem('kanri-layout',el.dataset.v)}catch(err){}applyLayout();render();toast(el.dataset.v==='auto'?'画面の大きさで自動切替にしました':el.dataset.v==='pc'?'PC表示にしました':'iPad表示にしました');break;
+  case 'import':importData().catch(err=>alert('復元に失敗しました：'+err.message));break;
+ }
+});
+
+/* ========== 起動 ========== */
+(async()=>{
+ try{await DB.open();state.orders=await DB.all('orders');state.products=await DB.all('products')}
+ catch(e){$('#view').innerHTML=`<div class="panel"><h3>データベースを開けませんでした</h3><p>プライベートブラウズでは使えません。通常のウィンドウ（Safari・Chrome・Edge）で開いてください。（${esc(e&&e.message)}）</p></div>`;return}
+ refreshDatalists();render();gcFiles();
+ // 日付が変わったら残り日数を更新
+ let day=today();setInterval(()=>{if(today()!==day){day=today();if(state.tab==='orders'&&!$('#modalRoot').children.length)renderOrderList()}},60000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.tab==='orders'&&!$('#modalRoot').children.length)renderOrderList()});
+ try{if(navigator.storage&&navigator.storage.persist&&!(await navigator.storage.persisted()))navigator.storage.persist()}catch(e){}
+ if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
